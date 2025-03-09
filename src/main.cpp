@@ -23,9 +23,10 @@ int main(int argc, char* argv[])
 
 	if (!svn_path)
 	{
-		std::cerr << "Failed to parse the SVN repository string. Make sure a valid path to a on-disk SVN repository is provided.\n";
+		std::cerr << "Failed to parse the SVN repository string. Make sure a "
+			     "valid path to a on-disk SVN repository is provided.\n";
 		return 1;
 	}
 
-        return 0;
+	return 0;
 }

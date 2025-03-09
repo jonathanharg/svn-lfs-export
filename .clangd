@@ -1,0 +1,20 @@
+InlayHints:
+    ParameterNames: No
+    DeducedTypes: No
+Diagnostics:
+    UnusedIncludes: Strict
+    ClangTidy:
+        Add:
+            [
+                bugprone-*,
+                cert-*,
+                cppcoreguidelines-*,
+                hicpp-*,
+                modernize-*,
+                performance-*,
+            ]
+        Remove:
+            [
+                bugprone-easily-swappable-parameters,
+                modernize-use-trailing-return-type,
+            ]
