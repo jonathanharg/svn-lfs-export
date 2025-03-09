@@ -1,0 +1,27 @@
+repository = 'path/to/repository'
+min_revision = 0
+max_revision = 1000
+create_base_commit = false
+# maps unknown users to 'svnusername <svnusername@yourcompany.com>'
+domain = 'yourcompany.com'
+LFS = [
+	'regex paths',
+	'for LFS files'
+]
+
+[identity_map]
+jsmith = 'John Smith <jsmith@yourcompany.com>'
+
+[[rule]]
+path = 'some regex match with captures'
+repository = 'repo (captures can be used here)'
+branch = 'branch (or here)'
+min_revision = 0
+max_revision = 1000
+
+[[rule]]
+path = 'some regex match with captures'
+repository = 'repo (captures can be used here)'
+branch = 'branch (or here)'
+min_revision = 0
+max_revision = 1000
