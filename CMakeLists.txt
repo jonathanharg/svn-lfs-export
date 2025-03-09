@@ -27,6 +27,13 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(tomlplusplus)
 
+FetchContent_Declare(
+	re2
+	GIT_REPOSITORY "https://github.com/google/re2.git"
+	GIT_TAG 2024-07-02
+)
+FetchContent_MakeAvailable(re2)
+
 add_executable(${PROJECT_NAME} src/main.cpp)
 
 target_link_libraries(
@@ -34,6 +41,7 @@ target_link_libraries(
 	fmt::fmt
 	argparse
 	tomlplusplus::tomlplusplus
+	re2
 )
 
 target_compile_definitions(
