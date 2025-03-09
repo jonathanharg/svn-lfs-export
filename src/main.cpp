@@ -20,7 +20,7 @@ int main(int argc, char* argv[])
 
 	const toml::table& config = config_result.table();
 
-	const auto svn_path = config["repository"].value<std::string>();
+	const auto svn_path = config["svn_path"].value<std::string>();
 	const auto min_revision = config["min_revision"].value<long int>();
 	const auto max_revision = config["max_revision"].value<long int>();
 	const auto override_domain = config["domain"].value<std::string>();
@@ -45,7 +45,7 @@ int main(int argc, char* argv[])
 
 	if (identity_table)
 	{
-		const RE2 valid_name_re(R"(^[^\n<>]+<[^<>\n]+>$)");
+		const RE2 valid_name_re(R"(^([^\n<>]+\ )*<[^<>\n]+>$)");
 		for (auto&& [key, value] : *identity_table)
 		{
 			const auto git_identity = value.value<std::string>();
