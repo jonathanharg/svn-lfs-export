@@ -4,6 +4,7 @@
 #include "toml++/toml.hpp"
 #include <filesystem>
 #include <iostream>
+#include <memory>
 #include <optional>
 #include <unordered_map>
 
@@ -25,6 +26,10 @@ int main(int argc, char* argv[])
 	const auto max_revision = config["max_revision"].value<long int>();
 	const auto override_domain = config["domain"].value<std::string>();
 	const auto create_base_commit = config["create_base_commit"].value_or(false);
+	const auto strict_mode = config["strict_mode"].value_or(false);
+	const auto commit_message_template =
+	    config["commit_message"].value_or("{original_message}\n\nThis commit was converted "
+					      "from revision r{revision} by svn-lfs-export.\n");
 
 	if (!svn_path)
 	{
@@ -77,6 +82,33 @@ int main(int argc, char* argv[])
 	{
 		std::cerr << "Warning, no domain provided. Any SVN users not present in the "
 			     "identity map will cause the program to terminate with an error.\n";
+	}
+
+	const auto lfs_config = config["LFS"].as_array();
+	std::vector<std::unique_ptr<RE2>> lfs_rules;
+
+	if (lfs_config)
+	{
+		for (const auto& rule : *lfs_config)
+		{
+			auto expression = rule.value<std::string_view>();
+			if (!expression)
+			{
+				std::cerr
+				    << "LFS must be defined as an array of regular expressions.\n";
+				return 1;
+			}
+
+			lfs_rules.emplace_back(std::make_unique<RE2>(*expression));
+
+			if (!lfs_rules.back()->ok())
+			{
+				std::cerr
+				    << "LFS regex rule is not valid: " << lfs_rules.back()->error()
+				    << "\n";
+				return 1;
+			}
+		}
 	}
 
 	return 0;
