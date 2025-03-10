@@ -1,27 +1,51 @@
-repository = 'path/to/repository'
+# REQUIRED: File path to the on-disk SVN repository
+svn_path = 'path/to/repository'
+# SVN revision to begin migrating from
 min_revision = 0
+# SVN revision to stop migrating at
 max_revision = 1000
+# Squash all changes prior to min_revision into a single base commit
 create_base_commit = false
-# maps unknown users to 'svnusername <svnusername@yourcompany.com>'
-domain = 'yourcompany.com'
+# Regex to match LFS file paths. Note that any files match by these rules should also be
+# in the .gitattributes file.
 LFS = [
-	'regex paths',
-	'for LFS files'
+	'\.psd$',
+	'^output/'
 ]
+# The git commit message to provide. Can use the variables
+#     - {original_message} The original SVN commit message
+#     - {username} The original committers SVN username
+#     - {revision} The original revision number
+commit_message = """
+{original_message}
 
+This commit was converted from revision r{revision} by svn-lfs-export.
+"""
+# REQUIRED: Either an identity_map or domain (preferably both)
+# Maps unknown users to 'svnusername <svnusername@yourcompany.com>'
+domain = 'yourcompany.com'
+
+# Map SVN usernames to Git Authors in the format 'Full User Name <email@domain.com>'
 [identity_map]
 jsmith = 'John Smith <jsmith@yourcompany.com>'
 
 [[rule]]
-path = 'some regex match with captures'
-repository = 'repo (captures can be used here)'
-branch = 'branch (or here)'
+# REQUIRED: SVN path to match (with regex captures)
+svn_path = '$branch/([^/]+)/(.*)'
+# REQUIRED: Path to an existing git repository (regex replacements can be used here)
+repository = 'path/to/repository'
+# REQUIRED: Git branch (regex replacements can be used here)
+branch = '\1'
+# The git path to map to. If none is provided, anything remaining after the capture of
+# svn_path will be used as the git path.
+git_path = 'prefix_folder/\2'
+# Min and max revisions this rule should apply to
 min_revision = 0
 max_revision = 1000
 
 [[rule]]
-path = 'some regex match with captures'
-repository = 'repo (captures can be used here)'
-branch = 'branch (or here)'
+svn_path = '$/trunk/my_project/'
+repository = 'repos/my_project_repo'
+branch = 'main'
 min_revision = 0
 max_revision = 1000
