@@ -1,5 +1,4 @@
 #include "argparse/argparse.hpp"
-#include "fmt/format.h"
 #include "re2/re2.h"
 #include "toml++/toml.hpp"
 #include <filesystem>
@@ -8,6 +7,16 @@
 #include <optional>
 #include <unordered_map>
 
+struct Rule
+{
+	std::string svn_path;
+	std::string repository;
+	std::string branch;
+	std::string git_path;
+	std::optional<long int> min_revision;
+	std::optional<long int> max_revision;
+};
+
 int main(int argc, char* argv[])
 {
 	argparse::ArgumentParser program("svn-lfs-export");
@@ -15,7 +24,8 @@ int main(int argc, char* argv[])
 
 	if (!config_result)
 	{
-		std::cerr << "Failed to parse config.toml - " << config_result.error() << '\n';
+		std::cerr << "ERROR: Failed to parse config.toml - " << config_result.error()
+			  << '\n';
 		return 1;
 	}
 
@@ -28,24 +38,24 @@ int main(int argc, char* argv[])
 	const auto create_base_commit = config["create_base_commit"].value_or(false);
 	const auto strict_mode = config["strict_mode"].value_or(false);
 	const auto commit_message_template =
-	    config["commit_message"].value_or("{original_message}\n\nThis commit was converted "
-					      "from revision r{revision} by svn-lfs-export.\n");
+		config["commit_message"].value_or("{original_message}\n\nThis commit was converted "
+						  "from revision r{revision} by svn-lfs-export.\n");
 
 	if (!svn_path)
 	{
-		std::cerr << "Failed to parse the SVN repository string. Make sure a "
-			     "valid path to a on-disk SVN repository is provided.\n";
+		std::cerr << "ERROR: Failed to parse the SVN repository string. Make sure a valid "
+			     "path to a on-disk SVN repository is provided.\n";
 		return 1;
 	}
 
 	if (!std::filesystem::is_directory(*svn_path))
 	{
-		std::cerr << fmt::format(
-		    "Repository path \"{}\" is not a directory that can be found.\n", *svn_path);
+		std::cerr << "ERROR: Repository path \"" << *svn_path
+			  << "\" is not a directory that can be found.\n";
 		return 1;
 	}
 
-	const auto identity_table = config["identity_map"].as_table();
+	const toml::table* identity_table = config["identity_map"].as_table();
 	std::unordered_map<std::string, std::string> identity_map;
 
 	if (identity_table)
@@ -56,10 +66,9 @@ int main(int argc, char* argv[])
 			const auto git_identity = value.value<std::string>();
 			if (!git_identity || !RE2::FullMatch(*git_identity, valid_name_re))
 			{
-				std::cerr << fmt::format(
-				    "Git identity for SVN user \"{}\" should be in the format "
-				    "\"Firstname Lastname <email@domain.com>\"\n",
-				    key.str());
+				std::cerr << "ERROR: Git identity for SVN user \"" << key.str()
+					  << "\" should be in the format \"Firstname Lastname "
+					     "<email@domain.com>\"\n";
 				return 1;
 			}
 			identity_map[std::string(key.str())] = *git_identity;
@@ -68,34 +77,34 @@ int main(int argc, char* argv[])
 
 	if (identity_map.size() == 0 && !override_domain)
 	{
-		std::cerr << "Please provide an identity map or a domain.\n";
+		std::cerr << "ERROR: Please provide an identity map or a domain.\n";
 		return 1;
 	}
 
 	if (identity_map.size() == 0)
 	{
-		std::cerr << "Warning, no identity map provided. Git author information will be "
+		std::cerr << "WARNING: No identity map provided. Git author information will be "
 			     "inaccurate.\n";
 	}
 
 	if (!override_domain)
 	{
-		std::cerr << "Warning, no domain provided. Any SVN users not present in the "
+		std::cerr << "WARNING: No domain provided. Any SVN users not present in the "
 			     "identity map will cause the program to terminate with an error.\n";
 	}
 
-	const auto lfs_config = config["LFS"].as_array();
+	const toml::array* lfs_config = config["LFS"].as_array();
 	std::vector<std::unique_ptr<RE2>> lfs_rules;
 
 	if (lfs_config)
 	{
-		for (const auto& rule : *lfs_config)
+		for (const toml::node& rule : *lfs_config)
 		{
 			auto expression = rule.value<std::string_view>();
 			if (!expression)
 			{
-				std::cerr
-				    << "LFS must be defined as an array of regular expressions.\n";
+				std::cerr << "ERROR: LFS must be defined as an array of regular "
+					     "expressions.\n";
 				return 1;
 			}
 
@@ -103,12 +112,51 @@ int main(int argc, char* argv[])
 
 			if (!lfs_rules.back()->ok())
 			{
-				std::cerr
-				    << "LFS regex rule is not valid: " << lfs_rules.back()->error()
-				    << "\n";
+				std::cerr << "ERROR: LFS regex rule is not valid: "
+					  << lfs_rules.back()->error() << "\n";
 				return 1;
 			}
 		}
+	}
+
+	std::vector<Rule> rules;
+	const toml::array* rules_config = config["rule"].as_array();
+
+	if (!rules_config || rules_config->size() == 0)
+	{
+		std::cerr << "ERROR: Expected rules to be an array of tables defined using "
+			     "multiple [[rule]] statements.\n";
+		return 1;
+	}
+
+	for (const toml::node& rule : *rules_config)
+	{
+		if (!rule.as_table())
+		{
+			std::cerr << "ERROR: Expected rules to be an array of tables defined using "
+				     "multiple [[rule]] statements.\n";
+			return 1;
+		}
+		const toml::table& table = *rule.as_table();
+
+		const auto svn_path = table["svn_path"].value<std::string>();
+		const auto repository = table["repository"].value<std::string>();
+		const auto branch = table["branch"].value<std::string>();
+		const auto git_path = table["git_path"].value<std::string>();
+
+		if (!svn_path || !repository || !branch || !git_path)
+		{
+			// TODO: Decide on what the requirements for rules should actually be
+			std::cerr << "ERROR: Provide svn_path, repository, branch and git_path for "
+				     "each rule.\n";
+			return 1;
+		}
+
+		const auto min_revision = table["min_revision"].value<long int>();
+		const auto max_revision = table["max_revision"].value<long int>();
+
+		rules.emplace_back(*svn_path, *repository, *branch, *git_path, min_revision,
+				   max_revision);
 	}
 
 	return 0;
