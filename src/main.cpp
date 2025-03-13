@@ -142,21 +142,50 @@ int main(int argc, char* argv[])
 		const auto svn_path = table["svn_path"].value<std::string>();
 		const auto repository = table["repository"].value<std::string>();
 		const auto branch = table["branch"].value<std::string>();
-		const auto git_path = table["git_path"].value<std::string>();
+		const std::string git_path = table["git_path"].value_or("");
 
-		if (!svn_path || !repository || !branch || !git_path)
+		if (!svn_path || !repository || !branch)
 		{
-			// TODO: Decide on what the requirements for rules should actually be
-			std::cerr << "ERROR: Provide svn_path, repository, branch and git_path for "
-				     "each rule.\n";
+			std::cerr << "ERROR: Provide svn_path, repository and branch for each "
+				     "rule.\n";
 			return 1;
 		}
 
 		const auto min_revision = table["min_revision"].value<long int>();
 		const auto max_revision = table["max_revision"].value<long int>();
 
-		rules.emplace_back(*svn_path, *repository, *branch, *git_path, min_revision,
+		rules.emplace_back(*svn_path, *repository, *branch, git_path, min_revision,
 				   max_revision);
+	}
+
+	for (std::string input_line; std::getline(std::cin, input_line);)
+	{
+		long int input_revision = 0;
+		std::string_view input_path;
+
+		if (!RE2::FullMatch(input_line, R"(([0-9]+)\s+(.*))", &input_revision, &input_path))
+		{
+			std::cerr << "ERROR: Input test path does not match the revision path "
+				     "format \"1234 your/path\".\n";
+			return 1;
+		}
+
+		for (const Rule& rule : rules)
+		{
+			// Given a RULE, takes an INPUT REVISION and INPUT SVN PATH as input
+			// 1. If not MIN REVISION <= INPUT REVISION <= MAX REVISION continue
+			//    to next rule
+			// 2. If not INPUT SVN PATH starts with and matches against
+			//    RULE SVN PATH continue, recording any non-captured suffix
+			// 3. If no REPOSITORY ignore path, break and skip all other rules
+			// 4. Rewrite GIT REPO with substitutions from SVN PATH match
+			// 5. Rewrite BRANCH with substitutions from SVN PATH match
+			// 6. Rewrite GIT PATH with substitutions from SVN PATH match
+			// 7. Append GIT PATH with the non-captured suffix being careful of
+			//    duplicate path separators (e.g. //)
+			// 8. Check if GIT PATH full matches with a rule in LFS RULES
+			// 9. Output GIT REPO, GIT BRANCH and a GIT PATH
+		}
 	}
 
 	return 0;

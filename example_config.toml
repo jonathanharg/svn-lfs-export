@@ -6,10 +6,12 @@ min_revision = 0
 max_revision = 1000
 # Squash all changes prior to min_revision into a single base commit
 create_base_commit = false
-# Regex to match LFS file paths. Note that any files match by these rules should also be
-# in the .gitattributes file.
+# Regex to match LFS file paths IN GIT. In other words, these expressions will
+# be matched against the final file paths in the git repository (not the files
+# SVN paths). Note that any files matching these rules should also be in the
+# .gitattributes file.
 LFS = [
-	'\.psd$',
+	'.*\.psd$',
 	'^output/'
 ]
 # The git commit message to provide. Can use the variables
@@ -36,23 +38,22 @@ jsmith = 'John Smith <jsmith@yourcompany.com>'
 # last) will apply, all subsequent rules will be ignored.
 
 [[rule]]
-# REQUIRED: SVN path to match (with regex captures)
-svn_path = '$branch/([^/]+)/(.*)'
-# Path to an existing git repository (regex replacements can be used here). If no
-# repository is provided the committed files will be ignored
-repository = 'path/to/repository'
-# Git branch (regex replacements can be used here). Required if repository is provided.
-branch = '\1'
-# The git path to map to. If none is provided, anything remaining after the capture of
-# svn_path will be used as the git path.
-git_path = 'prefix_folder/\2'
-# Min and max revisions this rule should apply to
+# REQUIRED: Regex to match SVN path, with captures.
+svn_path = '/projects/([^/]+)/branch/([^/]+)/'
+# Path to an existing git repository. If no repository is provided the committed files
+# will be ignored. Regex replacements can be used here.
+repository = 'my_repos/\1'
+# The git branch to map to. Required if repository is provided. Regex replacements can
+# be used here.
+branch = 'svn_\2'
+# The git path to map to, can be blank. Anything remaining not captured in svn_path
+# will be appended as the git path.
+git_path = '\1_src'
+# Optional min and max revisions (inclusive) this rule should apply to.
 min_revision = 0
 max_revision = 1000
 
 [[rule]]
-svn_path = '$/trunk/my_project/'
+svn_path = '/trunk/my_project/'
 repository = 'repos/my_project_repo'
 branch = 'main'
-min_revision = 0
-max_revision = 1000
