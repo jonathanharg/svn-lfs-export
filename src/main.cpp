@@ -194,6 +194,17 @@ int main(int argc, char* argv[])
 			//    duplicate path separators (e.g. //)
 			// 8. Check if GIT PATH full matches with a rule in LFS RULES
 			// 9. Output GIT REPO, GIT BRANCH and a GIT PATH
+
+			if (rule.min_revision && *rule.min_revision > input_revision)
+			{
+				// TODO: Add verbose logging
+				continue;
+			}
+			if (rule.max_revision && *rule.max_revision < input_revision)
+			{
+				// TODO: Add verbose logging
+				continue;
+			}
 		}
 	}
 

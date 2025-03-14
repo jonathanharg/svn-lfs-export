@@ -39,7 +39,7 @@ jsmith = 'John Smith <jsmith@yourcompany.com>'
 
 [[rule]]
 # REQUIRED: Regex to match SVN path, with captures.
-svn_path = '/projects/([^/]+)/branch/([^/]+)/(?=abc)'
+svn_path = '/projects/([^/]+)/branch/([^/]+)/'
 # Path to an existing git repository. If no repository is provided the committed files
 # will be ignored. Regex replacements can be used here.
 repository = 'my_repos/\1'
