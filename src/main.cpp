@@ -1,15 +1,17 @@
 #include "argparse/argparse.hpp"
+#include "fmt/base.h"
 #include "re2/re2.h"
 #include "toml++/toml.hpp"
 #include <filesystem>
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <string_view>
 #include <unordered_map>
 
 struct Rule
 {
-	std::string svn_path;
+	std::unique_ptr<RE2> svn_path;
 	std::string repository;
 	std::string branch;
 	std::string git_path;
@@ -31,7 +33,7 @@ int main(int argc, char* argv[])
 
 	const toml::table& config = config_result.table();
 
-	const auto svn_path = config["svn_path"].value<std::string>();
+	const auto svn_repository = config["svn_repository"].value<std::string>();
 	const auto min_revision = config["min_revision"].value<long int>();
 	const auto max_revision = config["max_revision"].value<long int>();
 	const auto override_domain = config["domain"].value<std::string>();
@@ -41,16 +43,16 @@ int main(int argc, char* argv[])
 		config["commit_message"].value_or("{original_message}\n\nThis commit was converted "
 						  "from revision r{revision} by svn-lfs-export.\n");
 
-	if (!svn_path)
+	if (!svn_repository)
 	{
 		std::cerr << "ERROR: Failed to parse the SVN repository string. Make sure a valid "
 			     "path to a on-disk SVN repository is provided.\n";
 		return 1;
 	}
 
-	if (!std::filesystem::is_directory(*svn_path))
+	if (!std::filesystem::is_directory(*svn_repository))
 	{
-		std::cerr << "ERROR: Repository path \"" << *svn_path
+		std::cerr << "ERROR: Repository path \"" << *svn_repository
 			  << "\" is not a directory that can be found.\n";
 		return 1;
 	}
@@ -100,7 +102,7 @@ int main(int argc, char* argv[])
 	{
 		for (const toml::node& rule : *lfs_config)
 		{
-			auto expression = rule.value<std::string_view>();
+			const auto expression = rule.value<std::string_view>();
 			if (!expression)
 			{
 				std::cerr << "ERROR: LFS must be defined as an array of regular "
@@ -112,7 +114,7 @@ int main(int argc, char* argv[])
 
 			if (!lfs_rules.back()->ok())
 			{
-				std::cerr << "ERROR: LFS regex rule is not valid: "
+				std::cerr << "ERROR: LFS regex is not valid: "
 					  << lfs_rules.back()->error() << "\n";
 				return 1;
 			}
@@ -139,7 +141,7 @@ int main(int argc, char* argv[])
 		}
 		const toml::table& table = *rule.as_table();
 
-		const auto svn_path = table["svn_path"].value<std::string>();
+		const auto svn_path = table["svn_path"].value<std::string_view>();
 		const auto repository = table["repository"].value<std::string>();
 		const auto branch = table["branch"].value<std::string>();
 		const std::string git_path = table["git_path"].value_or("");
@@ -154,8 +156,15 @@ int main(int argc, char* argv[])
 		const auto min_revision = table["min_revision"].value<long int>();
 		const auto max_revision = table["max_revision"].value<long int>();
 
-		rules.emplace_back(*svn_path, *repository, *branch, git_path, min_revision,
-				   max_revision);
+		rules.emplace_back(std::make_unique<RE2>(*svn_path), *repository, *branch, git_path,
+				   min_revision, max_revision);
+
+		if (!rules.back().svn_path->ok())
+		{
+			std::cerr << "ERROR: SVN path regex is not valid: "
+				  << rules.back().svn_path->error() << "\n";
+			return 1;
+		}
 	}
 
 	for (std::string input_line; std::getline(std::cin, input_line);)

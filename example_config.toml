@@ -1,5 +1,5 @@
 # REQUIRED: File path to the on-disk SVN repository
-svn_path = 'path/to/repository'
+svn_repository = 'path/to/repository'
 # SVN revision to begin migrating from
 min_revision = 0
 # SVN revision to stop migrating at
@@ -39,7 +39,7 @@ jsmith = 'John Smith <jsmith@yourcompany.com>'
 
 [[rule]]
 # REQUIRED: Regex to match SVN path, with captures.
-svn_path = '/projects/([^/]+)/branch/([^/]+)/'
+svn_path = '/projects/([^/]+)/branch/([^/]+)/(?=abc)'
 # Path to an existing git repository. If no repository is provided the committed files
 # will be ignored. Regex replacements can be used here.
 repository = 'my_repos/\1'
