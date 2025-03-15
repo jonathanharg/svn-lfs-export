@@ -1,9 +1,11 @@
 #include "argparse/argparse.hpp"
 #include "fmt/base.h"
+#include "fmt/ostream.h"
+#include "fmt/ranges.h"
+#include "fmt/std.h"
 #include "re2/re2.h"
 #include "toml++/toml.hpp"
 #include <filesystem>
-#include <fmt/ranges.h>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -158,8 +160,9 @@ int main(int argc, char* argv[])
 		}
 		if (repository.has_value() != branch.has_value())
 		{
-			std::cerr << "ERROR: For each rule both a repository and a branch must be "
-				     "provided, or neither should be provided .\n";
+			std::cerr << "ERROR: For " << *svn_path
+				  << " both a repository and a branch must be provided, or neither "
+				     "should be provided .\n";
 			return 1;
 		}
 
@@ -177,8 +180,28 @@ int main(int argc, char* argv[])
 
 		if (!rules.back().svn_path->ok())
 		{
-			std::cerr << "ERROR: SVN path regex is not valid: "
-				  << rules.back().svn_path->error() << "\n";
+			std::cerr << "ERROR: SVN path \"" << *svn_path
+				  << "\" is not valid: " << rules.back().svn_path->error() << "\n";
+			return 1;
+		}
+
+		std::string error;
+		static constexpr const char* error_message =
+			"ERROR: Could not rewrite \"{}\" with the regex \"{}\" - {}\n";
+
+		if (repository && !rules.back().svn_path->CheckRewriteString(*repository, &error))
+		{
+			std::cerr << fmt::format(error_message, *repository, *svn_path, error);
+			return 1;
+		}
+		if (branch && !rules.back().svn_path->CheckRewriteString(*branch, &error))
+		{
+			std::cerr << fmt::format(error_message, *branch, *svn_path, error);
+			return 1;
+		}
+		if (!rules.back().svn_path->CheckRewriteString(git_path, &error))
+		{
+			std::cerr << fmt::format(error_message, git_path, *svn_path, error);
 			return 1;
 		}
 	}
@@ -213,22 +236,24 @@ int main(int argc, char* argv[])
 
 			if (rule.min_revision && *rule.min_revision > input_revision)
 			{
-				// TODO: Add verbose logging
 				continue;
 			}
 			if (rule.max_revision && *rule.max_revision < input_revision)
 			{
-				// TODO: Add verbose logging
 				continue;
 			}
 
-			int captures_count = rule.svn_path->NumberOfCapturingGroups();
+			int captures_groups = rule.svn_path->NumberOfCapturingGroups();
 
-			std::vector<std::string_view> captures_views(captures_count);
-			std::vector<RE2::Arg> args(captures_count);
-			std::vector<RE2::Arg*> arg_ptrs(captures_count);
+			std::vector<std::string_view> captures_views(captures_groups);
 
-			for (int i = 0; i < captures_count; ++i)
+			// Use two vectors so we can "spoof" a const Arg* const args[]
+			// C-style array for ConsumeN that's dynamically sized based on
+			// the number of captures in the provided regex.
+			std::vector<RE2::Arg> args(captures_groups);
+			std::vector<RE2::Arg*> arg_ptrs(captures_groups);
+
+			for (int i = 0; i < captures_groups; ++i)
 			{
 				args[i] = RE2::Arg(&captures_views[i]);
 				arg_ptrs[i] = &args[i];
@@ -236,19 +261,40 @@ int main(int argc, char* argv[])
 
 			std::string_view input_view(input_path);
 			if (!RE2::ConsumeN(&input_view, *rule.svn_path, arg_ptrs.data(),
-					   captures_count))
+					   captures_groups))
 			{
-				// TODO: Add verbose logging
 				continue;
 			}
-			fmt::println("DEBUG: Match of rule on {} with args {} | remaining {}",
-				     input_path, captures_views, input_view);
+
+			// Insert the whole capture so the \0 substitution can be used properly
+			auto whole_capture_begin = input_path.begin();
+			auto whole_capture_end = input_view.begin();
+			captures_views.emplace(captures_views.begin(), whole_capture_begin,
+					       whole_capture_end);
 
 			if (!rule.repo_branch)
 			{
-				// TODO: Add verbose logging
 				break;
 			}
+
+			std::string output_repository;
+			std::string output_branch;
+			std::string output_path;
+
+			rule.svn_path->Rewrite(&output_repository, rule.repo_branch->repository,
+					       captures_views.data(), captures_groups + 1);
+
+			rule.svn_path->Rewrite(&output_branch, rule.repo_branch->branch,
+					       captures_views.data(), captures_groups + 1);
+
+			rule.svn_path->Rewrite(&output_path, rule.git_path, captures_views.data(),
+					       captures_groups + 1);
+
+			// Append any of the non-captured SVN path to the output git path
+			output_path.append(input_view);
+
+			fmt::println("DEBUG: Mapping \"{}\"\nRepo: {}\nBranch: {}\nPath: {}",
+				     input_path, output_repository, output_branch, output_path);
 		}
 	}
 
