@@ -3,6 +3,7 @@
 #include "re2/re2.h"
 #include "toml++/toml.hpp"
 #include <filesystem>
+#include <fmt/ranges.h>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -205,6 +206,27 @@ int main(int argc, char* argv[])
 				// TODO: Add verbose logging
 				continue;
 			}
+
+			int captures_count = rule.svn_path->NumberOfCapturingGroups();
+
+			std::vector<std::string_view> captures_views(captures_count);
+			std::vector<RE2::Arg> args(captures_count);
+			std::vector<RE2::Arg*> arg_ptrs(captures_count);
+
+			for (int i = 0; i < captures_count; ++i)
+			{
+				args[i] = RE2::Arg(&captures_views[i]);
+				arg_ptrs[i] = &args[i];
+			}
+
+			std::string_view input_view(input_path);
+			if (!RE2::ConsumeN(&input_view, *rule.svn_path, arg_ptrs.data(),
+					   captures_count))
+			{
+				continue;
+			}
+			fmt::println("DEBUG: Match of rule on {} with args {} | remaining {}",
+				     input_path, captures_views, input_view);
 		}
 	}
 
