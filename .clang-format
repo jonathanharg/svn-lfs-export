@@ -11,3 +11,4 @@ BreakBeforeBraces: Allman
 IndentAccessModifiers: false
 AllowShortFunctionsOnASingleLine: Inline
 PointerAlignment: Left
+BreakTemplateDeclarations: Yes

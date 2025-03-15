@@ -26,6 +26,12 @@ struct Rule
 	std::optional<long int> max_revision;
 };
 
+template <typename... T>
+inline void log_error(fmt::format_string<T...> fmt, T&&... args)
+{
+	fmt::println(std::cerr, fmt, std::forward<T>(args)...);
+}
+
 int main(int argc, char* argv[])
 {
 	argparse::ArgumentParser program("svn-lfs-export");
@@ -33,8 +39,8 @@ int main(int argc, char* argv[])
 
 	if (!config_result)
 	{
-		std::cerr << "ERROR: Failed to parse config.toml - " << config_result.error()
-			  << '\n';
+		log_error("ERROR: Failed to parse config.toml - {}",
+			  config_result.error().description());
 		return 1;
 	}
 
@@ -48,19 +54,19 @@ int main(int argc, char* argv[])
 	const auto strict_mode = config["strict_mode"].value_or(false);
 	const auto commit_message_template =
 		config["commit_message"].value_or("{original_message}\n\nThis commit was converted "
-						  "from revision r{revision} by svn-lfs-export.\n");
+						  "from revision r{revision} by svn-lfs-export.");
 
 	if (!svn_repository)
 	{
-		std::cerr << "ERROR: Failed to parse the SVN repository string. Make sure a valid "
-			     "path to a on-disk SVN repository is provided.\n";
+		log_error("ERROR: Failed to parse the SVN repository string. Make sure a valid "
+			  "path to a on-disk SVN repository is provided.");
 		return 1;
 	}
 
 	if (!std::filesystem::is_directory(*svn_repository))
 	{
-		std::cerr << "ERROR: Repository path \"" << *svn_repository
-			  << "\" is not a directory that can be found.\n";
+		log_error("ERROR: Repository path \"{}\" is not a directory that can be found.",
+			  *svn_repository);
 		return 1;
 	}
 
@@ -75,9 +81,9 @@ int main(int argc, char* argv[])
 			const auto git_identity = value.value<std::string>();
 			if (!git_identity || !RE2::FullMatch(*git_identity, valid_name_re))
 			{
-				std::cerr << "ERROR: Git identity for SVN user \"" << key.str()
-					  << "\" should be in the format \"Firstname Lastname "
-					     "<email@domain.com>\"\n";
+				log_error("ERROR: Git identity for SVN user \"{}\" should be in "
+					  "the format \"Firstname Lastname <email@domain.com>\"",
+					  key.str());
 				return 1;
 			}
 			identity_map[std::string(key.str())] = *git_identity;
@@ -86,20 +92,20 @@ int main(int argc, char* argv[])
 
 	if (identity_map.size() == 0 && !override_domain)
 	{
-		std::cerr << "ERROR: Please provide an identity map or a domain.\n";
+		log_error("ERROR: Please provide an identity map or a domain.");
 		return 1;
 	}
 
 	if (identity_map.size() == 0)
 	{
-		std::cerr << "WARNING: No identity map provided. Git author information will be "
-			     "inaccurate.\n";
+		log_error("WARNING: No identity map provided. Git author information will be "
+			  "inaccurate.");
 	}
 
 	if (!override_domain)
 	{
-		std::cerr << "WARNING: No domain provided. Any SVN users not present in the "
-			     "identity map will cause the program to terminate with an error.\n";
+		log_error("WARNING: No domain provided. Any SVN users not present in the identity "
+			  "map will cause the program to terminate with an error.");
 	}
 
 	const toml::array* lfs_config = config["LFS"].as_array();
@@ -112,8 +118,8 @@ int main(int argc, char* argv[])
 			const auto expression = rule.value<std::string_view>();
 			if (!expression)
 			{
-				std::cerr << "ERROR: LFS must be defined as an array of regular "
-					     "expressions.\n";
+				log_error("ERROR: LFS must be defined as an array of regular "
+					  "expressions.");
 				return 1;
 			}
 
@@ -121,8 +127,8 @@ int main(int argc, char* argv[])
 
 			if (!lfs_rules.back()->ok())
 			{
-				std::cerr << "ERROR: LFS regex is not valid: "
-					  << lfs_rules.back()->error() << "\n";
+				log_error("ERROR: LFS regex \"{}\" is not valid: {}",
+					  lfs_rules.back()->pattern(), lfs_rules.back()->error());
 				return 1;
 			}
 		}
@@ -133,8 +139,8 @@ int main(int argc, char* argv[])
 
 	if (!rules_config || rules_config->size() == 0)
 	{
-		std::cerr << "ERROR: Expected rules to be an array of tables defined using "
-			     "multiple [[rule]] statements.\n";
+		log_error("ERROR: Expected rules to be an array of tables defined using multiple "
+			  "[[rule]] statements.");
 		return 1;
 	}
 
@@ -142,8 +148,8 @@ int main(int argc, char* argv[])
 	{
 		if (!rule.as_table())
 		{
-			std::cerr << "ERROR: Expected rules to be an array of tables defined using "
-				     "multiple [[rule]] statements.\n";
+			log_error("ERROR: Expected rules to be an array of tables defined using "
+				  "multiple [[rule]] statements.");
 			return 1;
 		}
 		const toml::table& table = *rule.as_table();
@@ -155,14 +161,14 @@ int main(int argc, char* argv[])
 
 		if (!svn_path)
 		{
-			std::cerr << "ERROR: Provide an svn_path for each rule.\n";
+			log_error("ERROR: Provide an svn_path for each rule.");
 			return 1;
 		}
 		if (repository.has_value() != branch.has_value())
 		{
-			std::cerr << "ERROR: For " << *svn_path
-				  << " both a repository and a branch must be provided, or neither "
-				     "should be provided .\n";
+			log_error("ERROR: For {} both a repository and a branch must be provided, "
+				  "or neither should be provided .",
+				  *svn_path);
 			return 1;
 		}
 
@@ -180,41 +186,41 @@ int main(int argc, char* argv[])
 
 		if (!rules.back().svn_path->ok())
 		{
-			std::cerr << "ERROR: SVN path \"" << *svn_path
-				  << "\" is not valid: " << rules.back().svn_path->error() << "\n";
+			log_error("ERROR: SVN path \"{}\" is not valid: {}", *svn_path,
+				  rules.back().svn_path->error());
 			return 1;
 		}
 
 		std::string error;
 		static constexpr const char* error_message =
-			"ERROR: Could not rewrite \"{}\" with the regex \"{}\" - {}\n";
+			R"(ERROR: Could not rewrite "{}" with the regex "{}" - {})";
 
 		if (repository && !rules.back().svn_path->CheckRewriteString(*repository, &error))
 		{
-			std::cerr << fmt::format(error_message, *repository, *svn_path, error);
+			log_error(error_message, *repository, *svn_path, error);
 			return 1;
 		}
 		if (branch && !rules.back().svn_path->CheckRewriteString(*branch, &error))
 		{
-			std::cerr << fmt::format(error_message, *branch, *svn_path, error);
+			log_error(error_message, *branch, *svn_path, error);
 			return 1;
 		}
 		if (!rules.back().svn_path->CheckRewriteString(git_path, &error))
 		{
-			std::cerr << fmt::format(error_message, git_path, *svn_path, error);
+			log_error(error_message, git_path, *svn_path, error);
 			return 1;
 		}
 	}
 
 	for (std::string input_line; std::getline(std::cin, input_line);)
 	{
-		long int input_revision = 0;
-		std::string_view input_path;
+		long int revision = 0;
+		std::string_view path;
 
-		if (!RE2::FullMatch(input_line, R"(([0-9]+)\s+(.*))", &input_revision, &input_path))
+		if (!RE2::FullMatch(input_line, R"(([0-9]+)\s+(.*))", &revision, &path))
 		{
-			std::cerr << "ERROR: Input test path does not match the revision path "
-				     "format \"1234 your/path\".\n";
+			log_error("ERROR: Input test path does not match the revision path format "
+				  "\"1234 your/path\".");
 			return 1;
 		}
 
@@ -232,13 +238,13 @@ int main(int argc, char* argv[])
 			// 7. Append GIT PATH with the non-captured suffix being careful of
 			//    duplicate path separators (e.g. //)
 			// 8. Check if GIT PATH full matches with a rule in LFS RULES
-			// 9. Output GIT REPO, GIT BRANCH and a GIT PATH
+			// 9. Output GIT REPO, GIT BRANCH, a GIT PATH, and if LFS
 
-			if (rule.min_revision && *rule.min_revision > input_revision)
+			if (rule.min_revision && *rule.min_revision > revision)
 			{
 				continue;
 			}
-			if (rule.max_revision && *rule.max_revision < input_revision)
+			if (rule.max_revision && *rule.max_revision < revision)
 			{
 				continue;
 			}
@@ -259,7 +265,7 @@ int main(int argc, char* argv[])
 				arg_ptrs[i] = &args[i];
 			}
 
-			std::string_view input_view(input_path);
+			std::string_view input_view(path);
 			if (!RE2::ConsumeN(&input_view, *rule.svn_path, arg_ptrs.data(),
 					   captures_groups))
 			{
@@ -267,7 +273,7 @@ int main(int argc, char* argv[])
 			}
 
 			// Insert the whole capture so the \0 substitution can be used properly
-			auto whole_capture_begin = input_path.begin();
+			auto whole_capture_begin = path.begin();
 			auto whole_capture_end = input_view.begin();
 			captures_views.emplace(captures_views.begin(), whole_capture_begin,
 					       whole_capture_end);
@@ -293,8 +299,8 @@ int main(int argc, char* argv[])
 			// Append any of the non-captured SVN path to the output git path
 			output_path.append(input_view);
 
-			fmt::println("DEBUG: Mapping \"{}\"\nRepo: {}\nBranch: {}\nPath: {}",
-				     input_path, output_repository, output_branch, output_path);
+			fmt::println("DEBUG: Mapping \"{}\"\nRepo: {}\nBranch: {}\nPath: {}", path,
+				     output_repository, output_branch, output_path);
 		}
 	}
 
