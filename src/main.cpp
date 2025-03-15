@@ -163,7 +163,7 @@ int main(int argc, char* argv[])
 			return 1;
 		}
 
-		Rule::RepoBranch repo_branch = {};
+		std::optional<Rule::RepoBranch> repo_branch = {};
 		if (repository && branch)
 		{
 			repo_branch = Rule::RepoBranch{*repository, *branch};
@@ -238,10 +238,17 @@ int main(int argc, char* argv[])
 			if (!RE2::ConsumeN(&input_view, *rule.svn_path, arg_ptrs.data(),
 					   captures_count))
 			{
+				// TODO: Add verbose logging
 				continue;
 			}
 			fmt::println("DEBUG: Match of rule on {} with args {} | remaining {}",
 				     input_path, captures_views, input_view);
+
+			if (!rule.repo_branch)
+			{
+				// TODO: Add verbose logging
+				break;
+			}
 		}
 	}
 
