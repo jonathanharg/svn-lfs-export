@@ -12,9 +12,13 @@
 
 struct Rule
 {
+	using RepoBranch = struct
+	{
+		std::string repository;
+		std::string branch;
+	};
 	std::unique_ptr<RE2> svn_path;
-	std::string repository;
-	std::string branch;
+	std::optional<RepoBranch> repo_branch;
 	std::string git_path;
 	std::optional<long int> min_revision;
 	std::optional<long int> max_revision;
@@ -147,17 +151,28 @@ int main(int argc, char* argv[])
 		const auto branch = table["branch"].value<std::string>();
 		const std::string git_path = table["git_path"].value_or("");
 
-		if (!svn_path || !repository || !branch)
+		if (!svn_path)
 		{
-			std::cerr << "ERROR: Provide svn_path, repository and branch for each "
-				     "rule.\n";
+			std::cerr << "ERROR: Provide an svn_path for each rule.\n";
 			return 1;
+		}
+		if (repository.has_value() != branch.has_value())
+		{
+			std::cerr << "ERROR: For each rule both a repository and a branch must be "
+				     "provided, or neither should be provided .\n";
+			return 1;
+		}
+
+		Rule::RepoBranch repo_branch = {};
+		if (repository && branch)
+		{
+			repo_branch = Rule::RepoBranch{*repository, *branch};
 		}
 
 		const auto min_revision = table["min_revision"].value<long int>();
 		const auto max_revision = table["max_revision"].value<long int>();
 
-		rules.emplace_back(std::make_unique<RE2>(*svn_path), *repository, *branch, git_path,
+		rules.emplace_back(std::make_unique<RE2>(*svn_path), repo_branch, git_path,
 				   min_revision, max_revision);
 
 		if (!rules.back().svn_path->ok())
