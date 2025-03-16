@@ -265,8 +265,8 @@ int main(int argc, char* argv[])
 				arg_ptrs[i] = &args[i];
 			}
 
-			std::string_view input_view(path);
-			if (!RE2::ConsumeN(&input_view, *rule.svn_path, arg_ptrs.data(),
+			std::string_view consume_ptr(path);
+			if (!RE2::ConsumeN(&consume_ptr, *rule.svn_path, arg_ptrs.data(),
 					   captures_groups))
 			{
 				continue;
@@ -274,7 +274,7 @@ int main(int argc, char* argv[])
 
 			// Insert the whole capture so the \0 substitution can be used properly
 			auto whole_capture_begin = path.begin();
-			auto whole_capture_end = input_view.begin();
+			auto whole_capture_end = consume_ptr.begin();
 			captures_views.emplace(captures_views.begin(), whole_capture_begin,
 					       whole_capture_end);
 
@@ -297,7 +297,7 @@ int main(int argc, char* argv[])
 					       captures_groups + 1);
 
 			// Append any of the non-captured SVN path to the output git path
-			output_path.append(input_view);
+			output_path.append(consume_ptr);
 
 			fmt::println("DEBUG: Mapping \"{}\"\nRepo: {}\nBranch: {}\nPath: {}", path,
 				     output_repository, output_branch, output_path);
