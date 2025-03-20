@@ -75,7 +75,7 @@ int main(int argc, char* argv[])
 
 	if (identity_table)
 	{
-		const RE2 valid_name_re(R"(^([^\n<>]+\ )*<[^<>\n]+>$)");
+		static const RE2 valid_name_re(R"(^([^\n<>]+\ )*<[^<>\n]+>$)");
 		for (auto&& [key, value] : *identity_table)
 		{
 			const auto git_identity = value.value<std::string>();
