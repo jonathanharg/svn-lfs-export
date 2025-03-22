@@ -23,7 +23,7 @@ struct OutputLocation
 	std::string repository;
 	std::string branch;
 	std::string path;
-	bool LFS = false;
+	bool lfs = false;
 };
 
 std::optional<OutputLocation> map_path_to_output(const Config& config, const long int revision,
@@ -103,6 +103,15 @@ std::optional<OutputLocation> map_path_to_output(const Config& config, const lon
 		// Append any of the non-captured SVN path to the output git path
 		result.path.append(consume_ptr);
 
+		for (const auto& lfs_rule : config.lfs_rules)
+		{
+			if (RE2::FullMatch(result.path, *lfs_rule))
+			{
+				result.lfs = true;
+				break;
+			}
+		}
+
 		return result;
 	}
 	return std::nullopt;
@@ -140,6 +149,7 @@ int main(int argc, char* argv[])
 			fmt::println(" - Repository: {}", output->repository);
 			fmt::println(" - Branch: {}", output->branch);
 			fmt::println(" - Path: {}", output->path);
+			fmt::println(" - LFS: {}", output->lfs);
 		}
 		else
 		{
