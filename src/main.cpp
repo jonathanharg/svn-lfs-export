@@ -32,6 +32,94 @@ inline void log_error(fmt::format_string<T...> fmt, T&&... args)
 	fmt::println(std::cerr, fmt, std::forward<T>(args)...);
 }
 
+struct OutputLocation
+{
+	std::string repository;
+	std::string branch;
+	std::string path;
+};
+
+std::optional<OutputLocation> map_path_to_output(const std::vector<Rule>& rules,
+						 const long int revision,
+						 const std::string_view& path)
+{
+	for (const Rule& rule : rules)
+	{
+		// Given a RULE, takes an INPUT REVISION and INPUT SVN PATH as input
+		// 1. If not MIN REVISION <= INPUT REVISION <= MAX REVISION continue
+		//    to next rule
+		// 2. If not INPUT SVN PATH starts with and matches against
+		//    RULE SVN PATH continue, recording any non-captured suffix
+		// 3. If no REPOSITORY ignore path, break and skip all other rules
+		// 4. Rewrite GIT REPO with substitutions from SVN PATH match
+		// 5. Rewrite BRANCH with substitutions from SVN PATH match
+		// 6. Rewrite GIT PATH with substitutions from SVN PATH match
+		// 7. Append GIT PATH with the non-captured suffix being careful of
+		//    duplicate path separators (e.g. //)
+		// 8. Check if GIT PATH full matches with a rule in LFS RULES
+		// 9. Output GIT REPO, GIT BRANCH, a GIT PATH, and if LFS
+
+		if (rule.min_revision && *rule.min_revision > revision)
+		{
+			continue;
+		}
+		if (rule.max_revision && *rule.max_revision < revision)
+		{
+			continue;
+		}
+
+		int captures_groups = rule.svn_path->NumberOfCapturingGroups();
+
+		std::vector<std::string_view> captures_views(captures_groups);
+
+		// Use two vectors so we can "spoof" a const Arg* const args[]
+		// C-style array for ConsumeN that's dynamically sized based on
+		// the number of captures in the provided regex.
+		std::vector<RE2::Arg> args(captures_groups);
+		std::vector<RE2::Arg*> arg_ptrs(captures_groups);
+
+		for (int i = 0; i < captures_groups; ++i)
+		{
+			args[i] = RE2::Arg(&captures_views[i]);
+			arg_ptrs[i] = &args[i];
+		}
+
+		std::string_view consume_ptr(path);
+		if (!RE2::ConsumeN(&consume_ptr, *rule.svn_path, arg_ptrs.data(), captures_groups))
+		{
+			continue;
+		}
+
+		// Insert the whole capture so the \0 substitution can be used properly
+		auto whole_capture_begin = path.begin();
+		auto whole_capture_end = consume_ptr.begin();
+		captures_views.emplace(captures_views.begin(), whole_capture_begin,
+				       whole_capture_end);
+
+		if (!rule.repo_branch)
+		{
+			break;
+		}
+
+		OutputLocation result;
+
+		rule.svn_path->Rewrite(&result.repository, rule.repo_branch->repository,
+				       captures_views.data(), captures_groups + 1);
+
+		rule.svn_path->Rewrite(&result.branch, rule.repo_branch->branch,
+				       captures_views.data(), captures_groups + 1);
+
+		rule.svn_path->Rewrite(&result.path, rule.git_path, captures_views.data(),
+				       captures_groups + 1);
+
+		// Append any of the non-captured SVN path to the output git path
+		result.path.append(consume_ptr);
+
+		return result;
+	}
+	return std::nullopt;
+}
+
 int main(int argc, char* argv[])
 {
 	argparse::ArgumentParser program("svn-lfs-export");
@@ -224,83 +312,18 @@ int main(int argc, char* argv[])
 			return 1;
 		}
 
-		for (const Rule& rule : rules)
+		std::optional<OutputLocation> output = map_path_to_output(rules, revision, path);
+
+		if (output)
 		{
-			// Given a RULE, takes an INPUT REVISION and INPUT SVN PATH as input
-			// 1. If not MIN REVISION <= INPUT REVISION <= MAX REVISION continue
-			//    to next rule
-			// 2. If not INPUT SVN PATH starts with and matches against
-			//    RULE SVN PATH continue, recording any non-captured suffix
-			// 3. If no REPOSITORY ignore path, break and skip all other rules
-			// 4. Rewrite GIT REPO with substitutions from SVN PATH match
-			// 5. Rewrite BRANCH with substitutions from SVN PATH match
-			// 6. Rewrite GIT PATH with substitutions from SVN PATH match
-			// 7. Append GIT PATH with the non-captured suffix being careful of
-			//    duplicate path separators (e.g. //)
-			// 8. Check if GIT PATH full matches with a rule in LFS RULES
-			// 9. Output GIT REPO, GIT BRANCH, a GIT PATH, and if LFS
-
-			if (rule.min_revision && *rule.min_revision > revision)
-			{
-				continue;
-			}
-			if (rule.max_revision && *rule.max_revision < revision)
-			{
-				continue;
-			}
-
-			int captures_groups = rule.svn_path->NumberOfCapturingGroups();
-
-			std::vector<std::string_view> captures_views(captures_groups);
-
-			// Use two vectors so we can "spoof" a const Arg* const args[]
-			// C-style array for ConsumeN that's dynamically sized based on
-			// the number of captures in the provided regex.
-			std::vector<RE2::Arg> args(captures_groups);
-			std::vector<RE2::Arg*> arg_ptrs(captures_groups);
-
-			for (int i = 0; i < captures_groups; ++i)
-			{
-				args[i] = RE2::Arg(&captures_views[i]);
-				arg_ptrs[i] = &args[i];
-			}
-
-			std::string_view consume_ptr(path);
-			if (!RE2::ConsumeN(&consume_ptr, *rule.svn_path, arg_ptrs.data(),
-					   captures_groups))
-			{
-				continue;
-			}
-
-			// Insert the whole capture so the \0 substitution can be used properly
-			auto whole_capture_begin = path.begin();
-			auto whole_capture_end = consume_ptr.begin();
-			captures_views.emplace(captures_views.begin(), whole_capture_begin,
-					       whole_capture_end);
-
-			if (!rule.repo_branch)
-			{
-				break;
-			}
-
-			std::string output_repository;
-			std::string output_branch;
-			std::string output_path;
-
-			rule.svn_path->Rewrite(&output_repository, rule.repo_branch->repository,
-					       captures_views.data(), captures_groups + 1);
-
-			rule.svn_path->Rewrite(&output_branch, rule.repo_branch->branch,
-					       captures_views.data(), captures_groups + 1);
-
-			rule.svn_path->Rewrite(&output_path, rule.git_path, captures_views.data(),
-					       captures_groups + 1);
-
-			// Append any of the non-captured SVN path to the output git path
-			output_path.append(consume_ptr);
-
-			fmt::println("DEBUG: Mapping \"{}\"\nRepo: {}\nBranch: {}\nPath: {}", path,
-				     output_repository, output_branch, output_path);
+			fmt::println("DEBUG: Mapped \"{}\"", path);
+			fmt::println(" - Repository: {}", output->repository);
+			fmt::println(" - Branch: {}", output->branch);
+			fmt::println(" - Path: {}", output->path);
+		}
+		else
+		{
+			fmt::println("DEBUG: Path \"{}\" did not match any rules!", path);
 		}
 	}
 
