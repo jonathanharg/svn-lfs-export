@@ -53,7 +53,7 @@ find_library(SVN_FS_LIBRARY NAMES svn_fs-1 PATH_SUFFIXES lib REQUIRED)
 find_library(SVN_REPOS_LIBRARY NAMES svn_repos-1 PATH_SUFFIXES lib REQUIRED)
 find_library(SVN_SUBR_LIBRARY NAMES svn_subr-1 PATH_SUFFIXES lib REQUIRED)
 
-add_executable(${PROJECT_NAME} src/main.cpp)
+add_executable(${PROJECT_NAME} src/main.cpp src/config.cpp)
 
 target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
 
