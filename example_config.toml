@@ -48,7 +48,7 @@ repository = 'my_repos/\1'
 branch = 'svn_\2'
 # The git path to map to, can be blank. Anything remaining not captured in svn_path
 # will be appended as the git path.
-git_path = '\1_src'
+git_path = '\1_src/'
 # Optional min and max revisions (inclusive) this rule should apply to.
 min_revision = 0
 max_revision = 1000
