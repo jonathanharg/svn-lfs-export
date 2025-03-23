@@ -33,17 +33,18 @@ std::optional<OutputLocation> map_path_to_output(const Config& config, const lon
 
 	for (const Rule& rule : rules)
 	{
-		// Given a RULE, takes an INPUT REVISION and INPUT SVN PATH as input
+		// Given a RULE, takes an INPUT REVISION and INPUT SVN PATH
 		// 1. If not MIN REVISION <= INPUT REVISION <= MAX REVISION continue
 		//    to next rule
 		// 2. If not INPUT SVN PATH starts with and matches against
 		//    RULE SVN PATH continue, recording any non-captured suffix
-		// 3. If no REPOSITORY ignore path, break and skip all other rules
+		// 3. If no REPOSITORY, ignore path, break and skip all other rules
 		// 4. Rewrite GIT REPO with substitutions from SVN PATH match
 		// 5. Rewrite BRANCH with substitutions from SVN PATH match
 		// 6. Rewrite GIT PATH with substitutions from SVN PATH match
 		// 7. Append GIT PATH with the non-captured suffix being careful of
 		//    duplicate path separators (e.g. //)
+		//    [NOTE. This is now a user skill issue]
 		// 8. Check if GIT PATH full matches with a rule in LFS RULES
 		// 9. Output GIT REPO, GIT BRANCH, a GIT PATH, and if LFS
 
@@ -131,10 +132,11 @@ int main(int argc, char* argv[])
 
 	for (std::string input_line; std::getline(std::cin, input_line);)
 	{
+		static const RE2 input_line_re = R"(([0-9]+)\s+(.*))";
 		long int revision = 0;
 		std::string_view path;
 
-		if (!RE2::FullMatch(input_line, R"(([0-9]+)\s+(.*))", &revision, &path))
+		if (!RE2::FullMatch(input_line, input_line_re, &revision, &path))
 		{
 			log_error("ERROR: Input test path does not match the revision path format "
 				  "\"1234 your/path\".");
