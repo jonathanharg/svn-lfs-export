@@ -55,7 +55,7 @@ std::optional<Config> Config::from_file(const std::string_view& path)
 			const auto git_identity = value.value<std::string>();
 			if (!git_identity)
 			{
-				log_error("ERROR: Git identity for SVN user \"{}\" is invalid.",
+				log_error("ERROR: Git identity for SVN user {:?} is invalid.",
 					  key.str());
 				return std::nullopt;
 			}
@@ -138,7 +138,7 @@ bool Config::is_valid() const
 {
 	if (!std::filesystem::is_directory(svn_repository))
 	{
-		log_error("ERROR: Repository path \"{}\" is not a directory that can be found.",
+		log_error("ERROR: Repository path {:?} is not a directory that can be found.",
 			  svn_repository);
 		return false;
 	}
@@ -160,7 +160,7 @@ bool Config::is_valid() const
 	{
 		if (!RE2::FullMatch(value, valid_name_re))
 		{
-			log_error("ERROR: Git identity for SVN user \"{}\" should be in the format "
+			log_error("ERROR: Git identity for SVN user {:?} should be in the format "
 				  "\"Firstname Lastname <email@domain.com>\"",
 				  key);
 			return false;
@@ -189,7 +189,7 @@ bool Config::is_valid() const
 	{
 		if (!rule->ok())
 		{
-			log_error("ERROR: LFS regex \"{}\" is not valid: {}", rule->pattern(),
+			log_error("ERROR: LFS regex {:?} is not valid: {}", rule->pattern(),
 				  rule->error());
 			return false;
 		}
@@ -205,7 +205,7 @@ bool Config::is_valid() const
 	{
 		if (!rule.svn_path->ok())
 		{
-			log_error("ERROR: SVN path \"{}\" is not valid: {}",
+			log_error("ERROR: SVN path {:?} is not valid: {}",
 				  rule.svn_path->pattern(), rule.svn_path->error());
 			return false;
 		}
