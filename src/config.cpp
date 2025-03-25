@@ -32,9 +32,8 @@ std::optional<Config> Config::from_file(const std::string_view& path)
 	result.override_domain = root["domain"].value<std::string>();
 	result.create_base_commit = root["create_base_commit"].value_or(false);
 	result.strict_mode = root["strict_mode"].value_or(false);
-	result.commit_message_template =
-		root["commit_message"].value_or("{original_message}\n\nThis commit was converted "
-						"from revision r{revision} by svn-lfs-export.");
+	result.commit_message_template = root["commit_message"].value_or(
+		"{log}\n\nThis commit was converted from revision r{rev} by svn-lfs-export.");
 
 	const auto repository_value = root["svn_repository"].value<std::string>();
 
@@ -141,6 +140,18 @@ bool Config::is_valid() const
 	{
 		log_error("ERROR: Repository path \"{}\" is not a directory that can be found.",
 			  svn_repository);
+		return false;
+	}
+
+	try
+	{
+		(void)fmt::format(fmt::runtime(commit_message_template), fmt::arg("log", "log msg"),
+				  fmt::arg("usr", "sean"), fmt::arg("rev", 1));
+	}
+	catch (fmt::v11::format_error& err)
+	{
+		log_error("ERROR: Invalid commit_message template (fmtlib error {:?}).",
+			  err.what());
 		return false;
 	}
 

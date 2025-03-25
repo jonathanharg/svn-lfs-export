@@ -15,14 +15,14 @@ LFS = [
 	'^output/'
 ]
 # The git commit message to provide. Can use the variables
-#     - {original_message} The original SVN commit message
-#     - {username} The original committers SVN username
-#     - {revision} The original revision number
-commit_message = """
-{original_message}
-
-This commit was converted from revision r{revision} by svn-lfs-export.
-"""
+#     - {log} The original SVN commit/log message
+#     - {usr} The original committers SVN username
+#     - {rev} The original revision number
+# commit_message = """
+# {log}
+#
+# This commit was converted from revision r{rev} by svn-lfs-export.
+# """
 # Require all files in all commits to match a provided rule. If a file in a commit does
 # not match any rule, the program will terminate with an error.
 strict_mode = false
