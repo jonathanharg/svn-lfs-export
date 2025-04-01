@@ -1,4 +1,5 @@
 #include "config.hpp"
+#include <date/tz.h>
 #include <filesystem>
 #include <fmt/base.h>
 #include <fmt/ostream.h>
@@ -32,6 +33,7 @@ std::optional<Config> Config::from_file(const std::string_view& path)
 	result.override_domain = root["domain"].value<std::string>();
 	result.create_base_commit = root["create_base_commit"].value_or(false);
 	result.strict_mode = root["strict_mode"].value_or(false);
+	result.time_zone = root["time_zone"].value_or("Etc/UTC");
 	result.commit_message_template = root["commit_message"].value_or(
 		"{log}\n\nThis commit was converted from revision r{rev} by svn-lfs-export.");
 
@@ -179,6 +181,16 @@ bool Config::is_valid() const
 			  "inaccurate.");
 	}
 
+	try
+	{
+		date::locate_zone(time_zone);
+	}
+	catch (const std::exception& e)
+	{
+		log_error("ERROR: Timezone {:?} is not valid.", time_zone);
+		return false;
+	}
+
 	if (!override_domain)
 	{
 		log_error("WARNING: No domain provided. Any SVN users not present in the identity "
@@ -205,8 +217,8 @@ bool Config::is_valid() const
 	{
 		if (!rule.svn_path->ok())
 		{
-			log_error("ERROR: SVN path {:?} is not valid: {}",
-				  rule.svn_path->pattern(), rule.svn_path->error());
+			log_error("ERROR: SVN path {:?} is not valid: {}", rule.svn_path->pattern(),
+				  rule.svn_path->error());
 			return false;
 		}
 

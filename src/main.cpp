@@ -1,14 +1,27 @@
 #include "config.hpp"
+#include <apr_general.h>
+#include <apr_hash.h>
+#include <apr_pools.h>
 #include <argparse/argparse.hpp>
+#include <chrono>
 #include <cstdlib>
+#include <date/date.h>
+#include <date/tz.h>
 #include <fmt/base.h>
 #include <fmt/ostream.h>
+#include <fmt/std.h>
+#include <format>
 #include <iostream>
+#include <locale>
 #include <memory>
 #include <optional>
 #include <re2/re2.h>
+#include <sstream>
 #include <string>
 #include <string_view>
+#include <svn_pools.h>
+#include <svn_props.h>
+#include <svn_repos.h>
 #include <utility>
 #include <vector>
 
@@ -24,6 +37,25 @@ struct OutputLocation
 	std::string branch;
 	std::string path;
 	bool lfs = false;
+};
+
+class SVNPool
+{
+	apr_pool_t* pool = nullptr;
+
+public:
+	explicit SVNPool(apr_pool_t* parent = nullptr) : pool(svn_pool_create(parent)) {}
+	~SVNPool() { svn_pool_destroy(pool); }
+
+	SVNPool(const SVNPool&) = delete;
+	SVNPool(SVNPool&&) = delete;
+	SVNPool& operator=(const SVNPool&) = delete;
+	SVNPool& operator=(SVNPool&&) = delete;
+
+	void clear() { svn_pool_clear(pool); }
+
+	apr_pool_t* operator*() { return pool; };
+	operator apr_pool_t*() const { return pool; }
 };
 
 std::optional<OutputLocation> map_path_to_output(const Config& config, const long int revision,
@@ -118,6 +150,61 @@ std::optional<OutputLocation> map_path_to_output(const Config& config, const lon
 	return std::nullopt;
 }
 
+std::string get_git_author(const Config& config, const std::optional<std::string>& svn_username)
+{
+	const std::string& domain = config.override_domain.value_or("localhost");
+
+	if (!svn_username.has_value())
+	{
+		return fmt::format("Unknown User <unknown@{}>", domain);
+	}
+	if (config.identity_map.contains(*svn_username))
+	{
+		return config.identity_map.at(*svn_username);
+	}
+
+	return fmt::format("{} <{}@{}>", *svn_username, *svn_username, domain);
+}
+
+std::string get_commit_message(const Config& config, const std::string& svn_log,
+			       const std::string& svn_username, long int revision)
+{
+	return fmt::format(fmt::runtime(config.commit_message_template), fmt::arg("log", svn_log),
+			   fmt::arg("usr", svn_username), fmt::arg("rev", revision));
+}
+
+std::string get_git_time(const Config& config, const std::string& svn_time)
+{
+	// It looks like SVN stores dates in UTC time
+	// https://svn.haxx.se/users/archive-2003-09/0322.shtml
+	// This is good, because we don't have to mess with time zones when converting
+	// to Unix Epoch time (which git uses). We might however, want to apply a local
+	// UTC offset based on the location of the server.
+
+	std::istringstream date_stream{svn_time};
+	std::chrono::sys_time<std::chrono::milliseconds> utc_time;
+	date_stream >> date::parse("%FT%T%Ez", utc_time);
+
+	// I'm 90% sure SVN stores UTC with 6 decimal places / microseconds
+	// But add a fail-safe to parse 0 decimal places / seconds
+	if (date_stream.fail())
+	{
+		date_stream.clear();
+		date_stream.exceptions(std::ios::failbit);
+		date_stream.str(svn_time);
+		date_stream >> date::parse("%FT%TZ", utc_time);
+	}
+	static const date::time_zone* tz = date::get_tzdb().locate_zone(config.time_zone);
+
+	date::zoned_time<std::chrono::milliseconds> zoned_time{tz, utc_time};
+	std::string formatted_offset = date::format("%z", zoned_time);
+
+	auto unix_epoch =
+		std::chrono::duration_cast<std::chrono::seconds>(utc_time.time_since_epoch())
+			.count();
+	return fmt::format("{} {}", unix_epoch, formatted_offset);
+}
+
 int main(int argc, char* argv[])
 {
 	argparse::ArgumentParser program("svn-lfs-export");
@@ -147,7 +234,7 @@ int main(int argc, char* argv[])
 
 		if (output)
 		{
-			fmt::println("DEBUG: Mapped \"{}\"", path);
+			fmt::println("DEBUG: Mapped {:?}", path);
 			fmt::println(" - Repository: {}", output->repository);
 			fmt::println(" - Branch: {}", output->branch);
 			fmt::println(" - Path: {}", output->path);
@@ -155,7 +242,82 @@ int main(int argc, char* argv[])
 		}
 		else
 		{
-			fmt::println("DEBUG: Path \"{}\" did not match any rules!", path);
+			fmt::println("DEBUG: Path {:?} did not match any rules!", path);
 		}
 	}
+
+	apr_initialize();
+	SVNPool root;
+	SVNPool scratch;
+	svn_repos_t* repository = nullptr;
+	svn_error_t* err = nullptr;
+
+	err = svn_repos_open3(&repository, config.svn_repository.c_str(), nullptr, root, scratch);
+	SVN_INT_ERR(err);
+
+	svn_fs_t* fs = svn_repos_fs(repository);
+	if (!fs)
+	{
+		log_error("ERROR: SVN failed to open fs.");
+		return EXIT_FAILURE;
+	}
+
+	long int youngest_revision = 0;
+	svn_fs_youngest_rev(&youngest_revision, fs, scratch);
+	long int start_revision = config.min_revision.value_or(0);
+	long int stop_revision = config.max_revision.value_or(youngest_revision);
+
+	fmt::println("INFO: Running from revision {} to {}", start_revision, stop_revision);
+	// 1. Start from max(0, min_rev) -> check this is valid. For each
+	// 2. Get props, author, message/log, date time
+	// 3. For all the SVN Files changed
+	//	3a. Store new file in git-fast-import friendly format
+	//	3b. For each git repo and for each branch, craft a git commit
+	//		3bi.  If it's text write with fast import
+	//		3bii. If it's LFS write blob directly and save pointer
+
+	for (long int rev = start_revision; rev <= stop_revision; rev++)
+	{
+		SVNPool rev_pool(*root);
+		svn_fs_root_t* rev_fs = nullptr;
+		err = svn_fs_revision_root(&rev_fs, fs, rev, rev_pool);
+
+		apr_hash_t* rev_props = nullptr;
+		err = svn_fs_revision_proplist2(&rev_props, fs, rev, false, rev_pool, scratch);
+
+		constexpr auto prop = [](apr_hash_t* list,
+					 const char* prop) -> std::optional<std::string>
+		{
+			auto* svn_string = static_cast<svn_string_t*>(
+				apr_hash_get(list, prop, APR_HASH_KEY_STRING));
+			if (svn_string)
+			{
+				return std::string(svn_string->data, svn_string->len);
+			}
+			return {};
+		};
+
+		std::optional<std::string> author_prop = prop(rev_props, SVN_PROP_REVISION_AUTHOR);
+		std::optional<std::string> log_prop = prop(rev_props, SVN_PROP_REVISION_LOG);
+		std::string date_prop =
+			prop(rev_props, SVN_PROP_REVISION_DATE).value_or("1970-01-01T00:00:00Z");
+
+		std::string git_author = get_git_author(config, author_prop);
+		std::string git_message = get_commit_message(config, log_prop.value_or(""),
+							     author_prop.value_or("unknown"), rev);
+		std::string git_time = get_git_time(config, date_prop);
+
+		fmt::println("== Rev {} ==", rev);
+		fmt::println("author: {} -> {:?}", author_prop, git_author);
+		fmt::println("log: {} -> {:?}", log_prop, git_message);
+		fmt::println("time: {} -> {}", date_prop, git_time);
+	}
+
+	// THINK ABOUT
+	//  - 1 rev => >= 1 commit
+	//  - Failure / cancelling mid process
+	//  - Saving marks?
+	//  - Continuing from where you left off
+	//  - Branch creation
+	//  - Merging?
 }

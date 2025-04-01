@@ -26,6 +26,10 @@ LFS = [
 # Require all files in all commits to match a provided rule. If a file in a commit does
 # not match any rule, the program will terminate with an error.
 strict_mode = false
+# Time zone of the server. All SVN times are stored in UTC, but this will give (more)
+# accurate git offsets. Defaults to "Etc/UTC". See
+# https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+time_zone = "Europe/London"
 # REQUIRED: Either an identity_map or domain (preferably both)
 # Maps unknown users to 'svnusername <svnusername@yourcompany.com>'
 domain = 'yourcompany.com'

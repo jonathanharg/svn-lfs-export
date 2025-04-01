@@ -29,6 +29,7 @@ struct Config
 	std::optional<long int> max_revision;
 	std::string svn_repository;
 	std::optional<std::string> override_domain;
+	std::string time_zone;
 	std::string commit_message_template;
 	std::vector<Rule> rules;
 	std::vector<std::unique_ptr<RE2>> lfs_rules;

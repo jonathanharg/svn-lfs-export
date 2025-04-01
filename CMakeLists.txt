@@ -5,6 +5,8 @@ include(FetchContent)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_BUILD_TYPE debug)
 
 FetchContent_Declare(
 	fmt
@@ -33,6 +35,14 @@ FetchContent_Declare(
 	GIT_TAG 2024-07-02
 )
 FetchContent_MakeAvailable(re2)
+
+FetchContent_Declare(date
+	GIT_REPOSITORY https://github.com/HowardHinnant/date.git
+	GIT_TAG v3.0.3
+)
+set(BUILD_TZ_LIB ON CACHE BOOL "Build date/tz library")
+set(USE_SYSTEM_TZ_DB ON CACHE BOOL "Use system time zone database")
+FetchContent_MakeAvailable(date)
 
 find_path(
 	APR_INCLUDE_DIR
@@ -65,6 +75,8 @@ target_link_libraries(
 	argparse::argparse
 	tomlplusplus::tomlplusplus
 	re2::re2
+	date::date
+	date-tz
 	${APR_LIBRARY}
 	${SVN_FS_LIBRARY}
 	${SVN_REPOS_LIBRARY}
