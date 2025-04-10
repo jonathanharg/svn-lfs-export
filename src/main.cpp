@@ -217,35 +217,6 @@ int main(int argc, char* argv[])
 
 	const Config& config = maybe_config.value();
 
-	for (std::string input_line; std::getline(std::cin, input_line);)
-	{
-		static const RE2 input_line_re = R"(([0-9]+)\s+(.*))";
-		long int revision = 0;
-		std::string_view path;
-
-		if (!RE2::FullMatch(input_line, input_line_re, &revision, &path))
-		{
-			log_error("ERROR: Input test path does not match the revision path format "
-				  "\"1234 your/path\".");
-			return EXIT_FAILURE;
-		}
-
-		std::optional<OutputLocation> output = map_path_to_output(config, revision, path);
-
-		if (output)
-		{
-			fmt::println("DEBUG: Mapped {:?}", path);
-			fmt::println(" - Repository: {}", output->repository);
-			fmt::println(" - Branch: {}", output->branch);
-			fmt::println(" - Path: {}", output->path);
-			fmt::println(" - LFS: {}", output->lfs);
-		}
-		else
-		{
-			fmt::println("DEBUG: Path {:?} did not match any rules!", path);
-		}
-	}
-
 	apr_initialize();
 	SVNPool root;
 	SVNPool scratch;
@@ -281,9 +252,11 @@ int main(int argc, char* argv[])
 		SVNPool rev_pool(*root);
 		svn_fs_root_t* rev_fs = nullptr;
 		err = svn_fs_revision_root(&rev_fs, fs, rev, rev_pool);
+		SVN_INT_ERR(err);
 
 		apr_hash_t* rev_props = nullptr;
 		err = svn_fs_revision_proplist2(&rev_props, fs, rev, false, rev_pool, scratch);
+		SVN_INT_ERR(err);
 
 		constexpr auto prop = [](apr_hash_t* list,
 					 const char* prop) -> std::optional<std::string>
@@ -307,10 +280,55 @@ int main(int argc, char* argv[])
 							     author_prop.value_or("unknown"), rev);
 		std::string git_time = get_git_time(config, date_prop);
 
-		fmt::println("== Rev {} ==", rev);
-		fmt::println("author: {} -> {:?}", author_prop, git_author);
-		fmt::println("log: {} -> {:?}", log_prop, git_message);
-		fmt::println("time: {} -> {}", date_prop, git_time);
+		fmt::println("\n== Rev {} ==", rev);
+		fmt::println("author: {:?}", git_author);
+		fmt::println("msg: {:?}", git_message);
+		fmt::println("time: {} ({})", git_time, date_prop);
+
+		svn_fs_path_change_iterator_t* it = nullptr;
+		svn_fs_path_change3_t* changes = nullptr;
+		err = svn_fs_paths_changed3(&it, rev_fs, rev_pool, scratch);
+		SVN_INT_ERR(err);
+		err = svn_fs_path_change_get(&changes, it);
+		SVN_INT_ERR(err);
+
+		while (changes)
+		{
+
+			static constexpr size_t change_type_count =
+				svn_fs_path_change_kind_t::svn_fs_path_change_reset + 1;
+			static constexpr std::array<std::string_view, change_type_count>
+				change_type_strings = {"Modified", "Add", "Delete", "Replace",
+						       "Reset" /* Unused */};
+
+			static constexpr size_t node_count = svn_node_kind_t::svn_node_symlink + 1;
+			static constexpr std::array<std::string_view, node_count> node_strings = {
+				"None", "File", "Directory", "Unknown", "Symlink" /* Unused */};
+
+			std::string_view path{changes->path.data, changes->path.len};
+			std::string_view change = change_type_strings.at(changes->change_kind);
+			std::string_view node = node_strings.at(changes->node_kind);
+			bool text_mod = changes->text_mod;
+			bool prop_mod = changes->prop_mod;
+			// TODO: Copy from and mergeinfo
+
+			std::optional<OutputLocation> output =
+				map_path_to_output(config, rev, path);
+			fmt::println("{} {}: {:?} (mod text {}, props {})", change, node, path,
+				     text_mod, prop_mod);
+			if (output)
+			{
+				fmt::println("> {}/{} {} (LFS {})", output->repository,
+					     output->branch, output->path, output->lfs);
+			}
+			err = svn_fs_path_change_get(&changes, it);
+			SVN_INT_ERR(err);
+		}
+
+		// Store repo/branch pairs.
+		// For each repo/branch, commit
+
+		scratch.clear();
 	}
 
 	// THINK ABOUT
