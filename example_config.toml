@@ -42,7 +42,8 @@ jsmith = 'John Smith <jsmith@yourcompany.com>'
 # last) will apply, all subsequent rules will be ignored.
 
 [[rule]]
-# REQUIRED: Regex to match SVN path, with captures.
+# REQUIRED: Regex to match SVN path, with standard regex captures.
+# Captures:            v \1           v \2
 svn_path = '/projects/([^/]+)/branch/([^/]+)/'
 # Path to an existing git repository. If no repository is provided the committed files
 # will be ignored. Regex replacements can be used here.
@@ -57,7 +58,13 @@ git_path = '\1_src/'
 min_revision = 0
 max_revision = 1000
 
+# Basic git-svn like example usage
 [[rule]]
-svn_path = '/trunk/my_project/'
-repository = 'repos/my_project_repo'
+svn_path = '/trunk'
+repository = 'repo'
 branch = 'main'
+
+[[rule]]
+svn_path = '/branches/([^/]+)'
+repository = 'repo'
+branch = '\1'
