@@ -36,7 +36,8 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(re2)
 
-FetchContent_Declare(date
+FetchContent_Declare(
+	date
 	GIT_REPOSITORY https://github.com/HowardHinnant/date.git
 	GIT_TAG v3.0.3
 )
@@ -58,7 +59,13 @@ find_path(
 	REQUIRED
 )
 
-find_library(APR_LIBRARY NAMES apr-1 PATH_SUFFIXES lib HINTS "/opt/homebrew/opt/apr" REQUIRED)
+find_library(
+	APR_LIBRARY
+	NAMES apr-1
+	PATH_SUFFIXES lib
+	HINTS "/opt/homebrew/opt/apr"
+	REQUIRED
+)
 find_library(SVN_FS_LIBRARY NAMES svn_fs-1 PATH_SUFFIXES lib REQUIRED)
 find_library(SVN_REPOS_LIBRARY NAMES svn_repos-1 PATH_SUFFIXES lib REQUIRED)
 find_library(SVN_SUBR_LIBRARY NAMES svn_subr-1 PATH_SUFFIXES lib REQUIRED)
@@ -67,7 +74,10 @@ add_executable(${PROJECT_NAME} src/main.cpp src/config.cpp)
 
 target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
 
-target_include_directories(${PROJECT_NAME} PRIVATE ${SVN_INCLUDE_DIR} ${APR_INCLUDE_DIR})
+target_include_directories(
+	${PROJECT_NAME}
+	PRIVATE ${SVN_INCLUDE_DIR} ${APR_INCLUDE_DIR}
+)
 
 target_link_libraries(
 	${PROJECT_NAME}
