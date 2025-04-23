@@ -87,6 +87,16 @@ public:
 	operator apr_pool_t*() const { return pool; }
 };
 
+std::optional<std::string> get_prop(apr_hash_t* hash, const char* prop)
+{
+	auto* value = static_cast<svn_string_t*>(apr_hash_get(hash, prop, APR_HASH_KEY_STRING));
+	if (value)
+	{
+		return std::string(value->data, value->len);
+	}
+	return {};
+};
+
 std::optional<OutputLocation> map_path_to_output(const Config& config, const long int revision,
 						 const std::string_view& path)
 {
@@ -270,32 +280,33 @@ int main(int argc, char* argv[])
 	long int stop_revision = config.max_revision.value_or(youngest_revision);
 
 	log_info("Running from revision {} to {}", start_revision, stop_revision);
-	// 1. Start from max(1, min_rev) -> check this is valid. For each
-	// 2. Get props, author, message/log, date time
-	// 3. For all the SVN Files changed
-	//	3a. Store new file in git-fast-import friendly format
-	//	3b. For each git repo and for each branch, craft a git commit
-	//		3bi.  If it's text write with fast import
-	//		3bii. If it's LFS write blob directly and save pointer
 
-	// 1. Get revision properties, author, message, time
-	// 2. For each file added/removed/modified
-	//	- Get the output repo, branch, path
-	//	- Get the file size (and contents? / prepare for export)
-	//	- Set the parent for branching commits ??
-	//	- Store output repo, branch, path, file size, state (modified/added/deleted)
+	// 1. For each revision, get revision properties
+	//     - Author
+	//     - Date
+	//     - Log message
+	// 2. Gather all changes in a revision, grouping by output repo & branch
+	//    storing metadata and a lazy file stream.
+	//     - Output path -> output repo, branch, path & LFS
+	//     - Change type added/removed/modified
+	//     - Copy from?
+	//     - Merge info?
+	//     - File size
+	//     - File data stream
+	// 3. For each repo & branch, commit files.
 
 	// THINK ABOUT
-	//  - 1 rev => >= 1 commit
 	//  - Failure / cancelling mid process
-	//  - Saving marks?
+	//  - Saving marks
 	//  - Continuing from where you left off
-	//  - Branch creation
+	//  - Branch creation, working out "from" commit
 	//  - Merging?
 
 	for (long int rev = start_revision; rev <= stop_revision; rev++)
 	{
+		log_info("Converting r{}", rev);
 		SVNPool rev_pool(*root);
+
 		svn_fs_root_t* rev_fs = nullptr;
 		err = svn_fs_revision_root(&rev_fs, fs, rev, rev_pool);
 		SVN_INT_ERR(err);
@@ -304,72 +315,90 @@ int main(int argc, char* argv[])
 		err = svn_fs_revision_proplist2(&rev_props, fs, rev, false, rev_pool, scratch);
 		SVN_INT_ERR(err);
 
-		constexpr auto prop = [](apr_hash_t* list,
-					 const char* prop) -> std::optional<std::string>
-		{
-			auto* svn_string = static_cast<svn_string_t*>(
-				apr_hash_get(list, prop, APR_HASH_KEY_STRING));
-			if (svn_string)
-			{
-				return std::string(svn_string->data, svn_string->len);
-			}
-			return {};
-		};
+		static constexpr const char* epoch = "1970-01-01T00:00:00Z";
 
-		std::optional<std::string> author_prop = prop(rev_props, SVN_PROP_REVISION_AUTHOR);
-		std::optional<std::string> log_prop = prop(rev_props, SVN_PROP_REVISION_LOG);
-		std::string date_prop =
-			prop(rev_props, SVN_PROP_REVISION_DATE).value_or("1970-01-01T00:00:00Z");
+		auto author_prop = get_prop(rev_props, SVN_PROP_REVISION_AUTHOR);
+		auto log_prop = get_prop(rev_props, SVN_PROP_REVISION_LOG).value_or("");
+		auto date_prop = get_prop(rev_props, SVN_PROP_REVISION_DATE).value_or(epoch);
 
 		std::string git_author = get_git_author(config, author_prop);
-		std::string git_message = get_commit_message(config, log_prop.value_or(""),
-							     author_prop.value_or("unknown"), rev);
+		std::string git_message =
+			get_commit_message(config, log_prop, author_prop.value_or("unknown"), rev);
 		std::string git_time = get_git_time(config, date_prop);
 
 		svn_fs_path_change_iterator_t* it = nullptr;
-		svn_fs_path_change3_t* changes = nullptr;
 		err = svn_fs_paths_changed3(&it, rev_fs, rev_pool, scratch);
 		SVN_INT_ERR(err);
+
+		svn_fs_path_change3_t* changes = nullptr;
 		err = svn_fs_path_change_get(&changes, it);
 		SVN_INT_ERR(err);
 
-		while (changes)
-		{
-
-			std::string_view path{changes->path.data, changes->path.len};
-			std::string_view change = path_change_strings.at(changes->change_kind);
-			std::string_view node = node_kind_strings.at(changes->node_kind);
-			bool text_mod = changes->text_mod;
-			bool prop_mod = changes->prop_mod;
-			// TODO: Copy from and mergeinfo
-
-			std::optional<OutputLocation> output =
-				map_path_to_output(config, rev, path);
-			log_info("{} {}: {:?} (mod text {}, props {})", change, node, path,
-				 text_mod, prop_mod);
-			if (output)
-			{
-				log_info("> {}/{} {} (LFS {})", output->repository, output->branch,
-					 output->path, output->lfs);
-			}
-			err = svn_fs_path_change_get(&changes, it);
-			SVN_INT_ERR(err);
-		}
-
+		// TODO: Make the commit after first gathering files
 		std::string ref = "refs/heads/main";
 		output("commit {}", ref);
 		output("committer {} {}", git_author, git_time);
 		output("data {}\n{}", git_message.length(), git_message);
 
-		// Apply a placeholder file in each commit
-		// TODO: Don't use inline
-		output("M {} inline hello_world.txt", static_cast<int>(GitMode::Normal));
-		std::string content = fmt::format("Hello from {} at revision {}",
-						  author_prop.value_or("unkown"), rev);
-		output("data {}\n{}", content.length(), content);
+		while (changes)
+		{
+			std::string path{changes->path.data, changes->path.len};
+			std::string_view change_kind = path_change_strings.at(changes->change_kind);
+			std::string_view node_kind = node_kind_strings.at(changes->node_kind);
 
-		// Store repo/branch pairs.
-		// For each repo/branch, commit
+			bool text_mod = changes->text_mod;
+			bool prop_mod = changes->prop_mod;
+
+			// TODO: Get Copy from and mergeinfo
+			// => Copy from might help performance / eliminate unnecessary duplication
+			// => merge info might help us create branches
+
+			std::optional<OutputLocation> destination =
+				map_path_to_output(config, rev, path);
+
+			log_error("{} {}: {:?} (mod text {}, props {})", change_kind, node_kind,
+				  path, text_mod, prop_mod);
+
+			if (destination)
+			{
+				log_error("> {}/{} {} (LFS {})", destination->repository,
+					  destination->branch, destination->path, destination->lfs);
+			}
+
+			// TODO: are we sure we can skip over directories here?
+			if (changes->node_kind != svn_node_kind_t::svn_node_file)
+			{
+				err = svn_fs_path_change_get(&changes, it);
+				SVN_INT_ERR(err);
+				continue;
+			}
+
+			svn_stream_t* content = nullptr;
+			// TODO: Should probably free these pools early?
+			// or have a file level pool
+			err = svn_fs_file_contents(&content, rev_fs, path.c_str(), rev_pool);
+			SVN_INT_ERR(err);
+
+			svn_filesize_t file_size = 0;
+			// TODO: I'm not sure if we want/need to be doing this
+			err = svn_fs_file_length(&file_size, rev_fs, path.c_str(), rev_pool);
+			SVN_INT_ERR(err);
+
+			std::unique_ptr<char[]> buffer(new char[file_size]);
+
+			// WARNING: This will probably overflow
+			apr_size_t read_size = file_size;
+			err = svn_stream_read_full(content, buffer.get(), &read_size);
+
+			std::string_view file{buffer.get(), static_cast<size_t>(file_size)};
+
+			output("M {} inline {}", static_cast<int>(GitMode::Normal),
+			       &path.c_str()[1]);
+			output("data {}\n{}", file.length(), file);
+
+			err = svn_fs_path_change_get(&changes, it);
+			SVN_INT_ERR(err);
+		}
 
 		scratch.clear();
 	}
