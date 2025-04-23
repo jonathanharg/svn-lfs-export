@@ -31,6 +31,18 @@ inline void log_error(fmt::format_string<T...> fmt, T&&... args)
 	fmt::println(std::cerr, fmt, std::forward<T>(args)...);
 }
 
+template <typename... T>
+inline void log_info(fmt::format_string<T...> fmt, T&&... args)
+{
+	fmt::println("progress {}", fmt::format(fmt, std::forward<T>(args)...));
+}
+
+template <typename... T>
+inline void output(fmt::format_string<T...> fmt, T&&... args)
+{
+	fmt::println(fmt, std::forward<T>(args)...);
+}
+
 struct OutputLocation
 {
 	std::string repository;
@@ -49,6 +61,7 @@ public:
 
 	SVNPool(const SVNPool&) = delete;
 	SVNPool(SVNPool&&) = delete;
+
 	SVNPool& operator=(const SVNPool&) = delete;
 	SVNPool& operator=(SVNPool&&) = delete;
 
@@ -233,19 +246,36 @@ int main(int argc, char* argv[])
 		return EXIT_FAILURE;
 	}
 
-	long int youngest_revision = 0;
-	svn_fs_youngest_rev(&youngest_revision, fs, scratch);
-	long int start_revision = config.min_revision.value_or(0);
+	long int youngest_revision = 1;
+	err = svn_fs_youngest_rev(&youngest_revision, fs, scratch);
+	SVN_INT_ERR(err);
+
+	long int start_revision = config.min_revision.value_or(1);
 	long int stop_revision = config.max_revision.value_or(youngest_revision);
 
-	fmt::println("INFO: Running from revision {} to {}", start_revision, stop_revision);
-	// 1. Start from max(0, min_rev) -> check this is valid. For each
+	log_info("Running from revision {} to {}", start_revision, stop_revision);
+	// 1. Start from max(1, min_rev) -> check this is valid. For each
 	// 2. Get props, author, message/log, date time
 	// 3. For all the SVN Files changed
 	//	3a. Store new file in git-fast-import friendly format
 	//	3b. For each git repo and for each branch, craft a git commit
 	//		3bi.  If it's text write with fast import
 	//		3bii. If it's LFS write blob directly and save pointer
+
+	// 1. Get revision properties, author, message, time
+	// 2. For each file added/removed/modified
+	//	- Get the output repo, branch, path
+	//	- Get the file size (and contents? / prepare for export)
+	//	- Set the parent for branching commits ??
+	//	- Store output repo, branch, path, file size, state (modified/added/deleted)
+
+	// THINK ABOUT
+	//  - 1 rev => >= 1 commit
+	//  - Failure / cancelling mid process
+	//  - Saving marks?
+	//  - Continuing from where you left off
+	//  - Branch creation
+	//  - Merging?
 
 	for (long int rev = start_revision; rev <= stop_revision; rev++)
 	{
@@ -280,11 +310,6 @@ int main(int argc, char* argv[])
 							     author_prop.value_or("unknown"), rev);
 		std::string git_time = get_git_time(config, date_prop);
 
-		fmt::println("\n== Rev {} ==", rev);
-		fmt::println("author: {:?}", git_author);
-		fmt::println("msg: {:?}", git_message);
-		fmt::println("time: {} ({})", git_time, date_prop);
-
 		svn_fs_path_change_iterator_t* it = nullptr;
 		svn_fs_path_change3_t* changes = nullptr;
 		err = svn_fs_paths_changed3(&it, rev_fs, rev_pool, scratch);
@@ -314,28 +339,33 @@ int main(int argc, char* argv[])
 
 			std::optional<OutputLocation> output =
 				map_path_to_output(config, rev, path);
-			fmt::println("{} {}: {:?} (mod text {}, props {})", change, node, path,
-				     text_mod, prop_mod);
+			log_info("{} {}: {:?} (mod text {}, props {})", change, node, path,
+				 text_mod, prop_mod);
 			if (output)
 			{
-				fmt::println("> {}/{} {} (LFS {})", output->repository,
-					     output->branch, output->path, output->lfs);
+				log_info("> {}/{} {} (LFS {})", output->repository, output->branch,
+					 output->path, output->lfs);
 			}
 			err = svn_fs_path_change_get(&changes, it);
 			SVN_INT_ERR(err);
 		}
+
+		std::string ref = "refs/heads/main";
+		output("commit {}", ref);
+		output("committer {} {}", git_author, git_time);
+		output("data {}\n{}", git_message.length(), git_message);
+
+		// Apply a placeholder file in each commit
+		int mode = 100644;
+		// TODO: Don't use inline
+		output("M {} inline hello_world.txt", mode);
+		std::string content = fmt::format("Hello from {} at revision {}",
+						  author_prop.value_or("unkown"), rev);
+		output("data {}\n{}", content.length(), content);
 
 		// Store repo/branch pairs.
 		// For each repo/branch, commit
 
 		scratch.clear();
 	}
-
-	// THINK ABOUT
-	//  - 1 rev => >= 1 commit
-	//  - Failure / cancelling mid process
-	//  - Saving marks?
-	//  - Continuing from where you left off
-	//  - Branch creation
-	//  - Merging?
 }

@@ -1,8 +1,8 @@
 # REQUIRED: File path to the on-disk SVN repository
 svn_repository = 'path/to/repository'
-# SVN revision to begin migrating from
-min_revision = 0
-# SVN revision to stop migrating at
+# SVN revision to begin migrating from, defaults to 1
+min_revision = 1
+# SVN revision to stop migrating at, defaults to the latest revision
 max_revision = 1000
 # Squash all changes prior to min_revision into a single base commit
 create_base_commit = false
@@ -55,7 +55,7 @@ branch = 'svn_\2'
 # will be appended as the git path.
 git_path = '\1_src/'
 # Optional min and max revisions (inclusive) this rule should apply to.
-min_revision = 0
+min_revision = 1
 max_revision = 1000
 
 # Basic git-svn like example usage
