@@ -18,3 +18,5 @@ Diagnostics:
                 bugprone-easily-swappable-parameters,
                 modernize-use-trailing-return-type,
             ]
+        CheckOptions:
+            cppcoreguidelines-avoid-do-while.IgnoreMacros: true

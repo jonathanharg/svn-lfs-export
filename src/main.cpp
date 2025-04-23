@@ -8,11 +8,10 @@
 #include <date/date.h>
 #include <date/tz.h>
 #include <fmt/base.h>
+#include <fmt/format.h>
 #include <fmt/ostream.h>
 #include <fmt/std.h>
-#include <format>
 #include <iostream>
-#include <locale>
 #include <memory>
 #include <optional>
 #include <re2/re2.h>
@@ -42,6 +41,23 @@ inline void output(fmt::format_string<T...> fmt, T&&... args)
 {
 	fmt::println(fmt, std::forward<T>(args)...);
 }
+
+constexpr std::array<std::string_view, 5> path_change_strings = {
+	"Modified", "Add", "Delete", "Replace", "Reset" /* Unused */
+};
+
+constexpr std::array<std::string_view, 5> node_kind_strings = {
+	"None", "File", "Directory", "Unknown", "Symlink" /* Unused */
+};
+
+enum class GitMode
+{
+	Normal = 100644,
+	Executable = 100755,
+	// Symlink = 120000,
+	// GitLink = 160000,
+	// Subdirectory = 040000,
+};
 
 struct OutputLocation
 {
@@ -320,19 +336,9 @@ int main(int argc, char* argv[])
 		while (changes)
 		{
 
-			static constexpr size_t change_type_count =
-				svn_fs_path_change_kind_t::svn_fs_path_change_reset + 1;
-			static constexpr std::array<std::string_view, change_type_count>
-				change_type_strings = {"Modified", "Add", "Delete", "Replace",
-						       "Reset" /* Unused */};
-
-			static constexpr size_t node_count = svn_node_kind_t::svn_node_symlink + 1;
-			static constexpr std::array<std::string_view, node_count> node_strings = {
-				"None", "File", "Directory", "Unknown", "Symlink" /* Unused */};
-
 			std::string_view path{changes->path.data, changes->path.len};
-			std::string_view change = change_type_strings.at(changes->change_kind);
-			std::string_view node = node_strings.at(changes->node_kind);
+			std::string_view change = path_change_strings.at(changes->change_kind);
+			std::string_view node = node_kind_strings.at(changes->node_kind);
 			bool text_mod = changes->text_mod;
 			bool prop_mod = changes->prop_mod;
 			// TODO: Copy from and mergeinfo
@@ -356,9 +362,8 @@ int main(int argc, char* argv[])
 		output("data {}\n{}", git_message.length(), git_message);
 
 		// Apply a placeholder file in each commit
-		int mode = 100644;
 		// TODO: Don't use inline
-		output("M {} inline hello_world.txt", mode);
+		output("M {} inline hello_world.txt", static_cast<int>(GitMode::Normal));
 		std::string content = fmt::format("Hello from {} at revision {}",
 						  author_prop.value_or("unkown"), rev);
 		output("data {}\n{}", content.length(), content);
