@@ -208,7 +208,7 @@ std::string get_git_author(const Config& config, const std::optional<std::string
 std::string get_commit_message(const Config& config, const std::string& svn_log,
 			       const std::string& svn_username, long int revision)
 {
-	return fmt::format(fmt::runtime(config.commit_message_template), fmt::arg("log", svn_log),
+	return fmt::format(fmt::runtime(config.commit_message), fmt::arg("log", svn_log),
 			   fmt::arg("usr", svn_username), fmt::arg("rev", revision));
 }
 

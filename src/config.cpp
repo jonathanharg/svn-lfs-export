@@ -31,11 +31,10 @@ std::optional<Config> Config::from_file(const std::string_view& path)
 	result.min_revision = root["min_revision"].value<long int>();
 	result.max_revision = root["max_revision"].value<long int>();
 	result.override_domain = root["domain"].value<std::string>();
-	result.create_base_commit = root["create_base_commit"].value_or(false);
-	result.strict_mode = root["strict_mode"].value_or(false);
-	result.time_zone = root["time_zone"].value_or("Etc/UTC");
-	result.commit_message_template = root["commit_message"].value_or(
-		"{log}\n\nThis commit was converted from revision r{rev} by svn-lfs-export.");
+	result.create_base_commit = root["create_base_commit"].value_or(kDefaultCreateBaseCommit);
+	result.strict_mode = root["strict_mode"].value_or(kDefaultStrictMode);
+	result.time_zone = root["time_zone"].value_or(kDefaultTimeZone);
+	result.commit_message = root["commit_message"].value_or(kDefaultCommitMessage);
 
 	const auto repository_value = root["svn_repository"].value<std::string>();
 
@@ -147,7 +146,7 @@ bool Config::is_valid() const
 
 	try
 	{
-		(void)fmt::format(fmt::runtime(commit_message_template), fmt::arg("log", "log msg"),
+		(void)fmt::format(fmt::runtime(commit_message), fmt::arg("log", "log msg"),
 				  fmt::arg("usr", "sean"), fmt::arg("rev", 1));
 	}
 	catch (fmt::v11::format_error& err)

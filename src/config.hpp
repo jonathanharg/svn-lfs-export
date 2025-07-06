@@ -30,11 +30,18 @@ struct Config
 	std::string svn_repository;
 	std::optional<std::string> override_domain;
 	std::string time_zone;
-	std::string commit_message_template;
+	std::string commit_message;
 	std::vector<Rule> rules;
 	std::vector<std::unique_ptr<RE2>> lfs_rules;
 	std::unordered_map<std::string, std::string> identity_map;
 
 	[[nodiscard]] bool is_valid() const;
 	static std::optional<Config> from_file(const std::string_view&);
+
+private:
+	static constexpr bool kDefaultCreateBaseCommit = false;
+	static constexpr bool kDefaultStrictMode = false;
+	static constexpr std::string_view kDefaultTimeZone = "Etc/UTC";
+	static constexpr std::string_view kDefaultCommitMessage =
+		"{log}\n\nThis commit was converted from revision r{rev} by svn-lfs-export.";
 };
