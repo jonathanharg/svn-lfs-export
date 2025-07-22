@@ -1,5 +1,6 @@
 #include "config.hpp"
 #include "svn.hpp"
+#include "utils.hpp"
 #include <apr_general.h>
 #include <apr_hash.h>
 #include <apr_pools.h>
@@ -24,24 +25,6 @@
 #include <svn_repos.h>
 #include <utility>
 #include <vector>
-
-template <typename... T>
-inline void LogError(fmt::format_string<T...> fmt, T&&... args)
-{
-	fmt::println(std::cerr, fmt, std::forward<T>(args)...);
-}
-
-template <typename... T>
-inline void LogInfo(fmt::format_string<T...> fmt, T&&... args)
-{
-	fmt::println("progress {}", fmt::format(fmt, std::forward<T>(args)...));
-}
-
-template <typename... T>
-inline void Output(fmt::format_string<T...> fmt, T&&... args)
-{
-	fmt::println(fmt, std::forward<T>(args)...);
-}
 
 constexpr std::array<std::string_view, 5> kPathChangeStrings = {
 	"Modified", "Add", "Delete", "Replace", "Reset" /* Unused */
@@ -134,8 +117,7 @@ std::optional<OutputLocation> MapPathToOutput(const Config& config, const long i
 		// Insert the whole capture so the \0 substitution can be used properly
 		auto wholeCaptureBegin = path.begin();
 		auto wholeCaptureEnd = consumePtr.begin();
-		capturesViews.emplace(capturesViews.begin(), wholeCaptureBegin,
-				       wholeCaptureEnd);
+		capturesViews.emplace(capturesViews.begin(), wholeCaptureBegin, wholeCaptureEnd);
 
 		if (!rule.repoBranch)
 		{
@@ -147,8 +129,8 @@ std::optional<OutputLocation> MapPathToOutput(const Config& config, const long i
 		rule.svnPath->Rewrite(&result.repository, rule.repoBranch->repository,
 				      capturesViews.data(), capturesGroups + 1);
 
-		rule.svnPath->Rewrite(&result.branch, rule.repoBranch->branch,
-				      capturesViews.data(), capturesGroups + 1);
+		rule.svnPath->Rewrite(&result.branch, rule.repoBranch->branch, capturesViews.data(),
+				      capturesGroups + 1);
 
 		rule.svnPath->Rewrite(&result.path, rule.gitPath, capturesViews.data(),
 				      capturesGroups + 1);
@@ -337,8 +319,8 @@ int main()
 			std::optional<OutputLocation> destination =
 				MapPathToOutput(config, rev, path);
 
-			LogError("{} {}: {:?} (mod text {}, props {})", changeKind, nodeKind,
-				 path, textMod, propMod);
+			LogError("{} {}: {:?} (mod text {}, props {})", changeKind, nodeKind, path,
+				 textMod, propMod);
 
 			if (destination)
 			{

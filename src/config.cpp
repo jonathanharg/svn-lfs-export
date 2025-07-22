@@ -1,4 +1,5 @@
 #include "config.hpp"
+#include "utils.hpp"
 #include <date/tz.h>
 #include <filesystem>
 #include <fmt/base.h>
@@ -7,12 +8,6 @@
 #include <re2/re2.h>
 #include <toml++/toml.hpp>
 #include <utility>
-
-template <typename... T>
-inline void LogError(fmt::format_string<T...> fmt, T&&... args)
-{
-	fmt::println(std::cerr, fmt, std::forward<T>(args)...);
-}
 
 std::optional<Config> Config::FromFile(const std::string_view& path)
 {
