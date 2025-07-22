@@ -219,15 +219,15 @@ std::expected<void, std::string> Config::IsValid() const
 			R"(ERROR: Could not rewrite "{}" with the regex "{}" - {})";
 
 		if (rule.repoBranch &&
-		    !rule.svnPath->CheckRewriteString(rule.repoBranch->repository, &error))
+		    !rule.svnPath->CheckRewriteString(rule.repoBranch->repo, &error))
 		{
-			return std::unexpected(fmt::format(errorMsg, rule.repoBranch->repository,
+			return std::unexpected(fmt::format(errorMsg, rule.repoBranch->repo,
 							   rule.svnPath->pattern(), error));
 		}
 		if (rule.repoBranch &&
-		    !rule.svnPath->CheckRewriteString(rule.repoBranch->repository, &error))
+		    !rule.svnPath->CheckRewriteString(rule.repoBranch->repo, &error))
 		{
-			return std::unexpected(fmt::format(errorMsg, rule.repoBranch->repository,
+			return std::unexpected(fmt::format(errorMsg, rule.repoBranch->repo,
 							   rule.svnPath->pattern(), error));
 		}
 		if (!rule.svnPath->CheckRewriteString(rule.gitPath, &error))

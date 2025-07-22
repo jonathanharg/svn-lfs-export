@@ -13,14 +13,14 @@ struct Rule
 {
 	using RepoBranch = struct
 	{
-		std::string repository;
+		std::string repo;
 		std::string branch;
 	};
 	std::unique_ptr<RE2> svnPath;
 	std::optional<RepoBranch> repoBranch;
 	std::string gitPath;
-	std::optional<long int> minRevision;
-	std::optional<long int> maxRevision;
+	std::optional<long int> minRev;
+	std::optional<long int> maxRev;
 };
 
 struct Config
