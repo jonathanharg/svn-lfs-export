@@ -23,7 +23,6 @@
 #include <svn_pools.h>
 #include <svn_props.h>
 #include <svn_repos.h>
-#include <utility>
 #include <vector>
 
 constexpr std::array<std::string_view, 5> kPathChangeStrings = {
@@ -210,10 +209,11 @@ std::string GetGitTime(const Config& config, const std::string& svnTime)
 int main()
 {
 	argparse::ArgumentParser program("svn-lfs-export");
-	const std::optional<Config> maybeConfig = Config::FromFile("config.toml");
+	const auto maybeConfig = Config::FromFile("config.toml");
 
-	if (!maybeConfig || !maybeConfig->IsValid())
+	if (!maybeConfig)
 	{
+		std::cerr << maybeConfig.error();
 		return EXIT_FAILURE;
 	}
 
@@ -231,7 +231,7 @@ int main()
 	svn_fs_t* fs = svn_repos_fs(repository);
 	if (!fs)
 	{
-		LogError("ERROR: SVN failed to open fs.");
+		std::cerr << "ERROR: SVN failed to open fs.";
 		return EXIT_FAILURE;
 	}
 

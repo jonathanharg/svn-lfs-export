@@ -1,27 +1,32 @@
 #include "config.hpp"
 #include "utils.hpp"
 #include <date/tz.h>
+#include <expected>
 #include <filesystem>
 #include <fmt/base.h>
 #include <fmt/ostream.h>
-#include <iostream>
 #include <re2/re2.h>
 #include <toml++/toml.hpp>
-#include <utility>
 
-std::optional<Config> Config::FromFile(const std::string_view& path)
+std::expected<Config, std::string> Config::FromFile(const std::string_view& path)
 {
 	const toml::parse_result fileRead = toml::parse_file(path);
 
 	if (!fileRead)
 	{
-		LogError("ERROR: Failed to parse config.toml - {}", fileRead.error().description());
-		return std::nullopt;
+		return std::unexpected(fmt::format("ERROR: Failed to parse config.toml - {}",
+						   fileRead.error().description()));
 	}
 
 	const toml::table& root = fileRead.table();
+	return Config::Parse(root);
+}
 
+std::expected<Config, std::string> Config::Parse(const toml::table& root)
+{
 	Config result;
+
+	// Optional or default values
 	result.minRev = root["min_revision"].value<long int>();
 	result.maxRev = root["max_revision"].value<long int>();
 	result.overrideDomain = root["domain"].value<std::string>();
@@ -34,9 +39,8 @@ std::optional<Config> Config::FromFile(const std::string_view& path)
 
 	if (!repositoryValue)
 	{
-		LogError("ERROR: Failed to parse the SVN repository string. Make sure a valid "
-			 "path to a on-disk SVN repository is provided.");
-		return std::nullopt;
+		return std::unexpected(
+			"ERROR: Failed to parse the SVN repository string. Make sure a valid path to a on-disk SVN repository is provided.");
 	}
 
 	result.svnRepo = *repositoryValue;
@@ -50,9 +54,9 @@ std::optional<Config> Config::FromFile(const std::string_view& path)
 			const auto gitIdentity = value.value<std::string>();
 			if (!gitIdentity)
 			{
-				LogError("ERROR: Git identity for SVN user {:?} is invalid.",
-					 key.str());
-				return std::nullopt;
+				return std::unexpected(fmt::format(
+					"ERROR: Git identity for SVN user {:?} is invalid.",
+					key.str()));
 			}
 			result.identityMap[std::string(key.str())] = *gitIdentity;
 		}
@@ -67,9 +71,8 @@ std::optional<Config> Config::FromFile(const std::string_view& path)
 			const auto expression = rule.value<std::string_view>();
 			if (!expression)
 			{
-				LogError("ERROR: LFS must be defined as an array of regular "
-					 "expressions.");
-				return std::nullopt;
+				std::unexpected(
+					"ERROR: LFS must be defined as an array of regular expressions.");
 			}
 
 			result.lfsRules.emplace_back(std::make_unique<RE2>(*expression));
@@ -80,18 +83,16 @@ std::optional<Config> Config::FromFile(const std::string_view& path)
 
 	if (!rulesConfig)
 	{
-		LogError("ERROR: Expected rules to be an array of tables defined using one or "
-			 "more [[rule]] statements.");
-		return std::nullopt;
+		return std::unexpected(
+			"ERROR: Expected rules to be an array of tables defined using one or more [[rule]] statements.");
 	}
 
 	for (const toml::node& rule : *rulesConfig)
 	{
 		if (!rule.as_table())
 		{
-			LogError("ERROR: Expected rules to be an array of tables defined using "
-				 "one or more [[rule]] statements.");
-			return std::nullopt;
+			return std::unexpected(
+				"ERROR: Expected rules to be an array of tables defined using one or more [[rule]] statements.");
 		}
 		const toml::table& table = *rule.as_table();
 
@@ -102,15 +103,13 @@ std::optional<Config> Config::FromFile(const std::string_view& path)
 
 		if (!svnPath)
 		{
-			LogError("ERROR: Provide an svn_path for each rule.");
-			return std::nullopt;
+			return std::unexpected("ERROR: Provide an svn_path for each rule.");
 		}
 		if (repository.has_value() != branch.has_value())
 		{
-			LogError("ERROR: For {} both a repository and a branch must be provided, "
-				 "or neither should be provided .",
-				 *svnPath);
-			return std::nullopt;
+			return std::unexpected(fmt::format(
+				"ERROR: For {} both a repository and a branch must be provided, or neither should be provided .",
+				*svnPath));
 		}
 
 		std::optional<Rule::RepoBranch> repoBranch = {};
@@ -126,16 +125,22 @@ std::optional<Config> Config::FromFile(const std::string_view& path)
 					  minRev, maxRev);
 	}
 
+	auto valid = result.IsValid();
+	if (!valid)
+	{
+		return std::unexpected(valid.error());
+	}
+
 	return result;
 }
 
-bool Config::IsValid() const
+std::expected<void, std::string> Config::IsValid() const
 {
 	if (!std::filesystem::is_directory(svnRepo))
 	{
-		LogError("ERROR: Repository path {:?} is not a directory that can be found.",
-			 svnRepo);
-		return false;
+		return std::unexpected(fmt::format(
+			"ERROR: Repository path {:?} is not a directory that can be found.",
+			svnRepo));
 	}
 
 	try
@@ -145,8 +150,8 @@ bool Config::IsValid() const
 	}
 	catch (fmt::v11::format_error& err)
 	{
-		LogError("ERROR: Invalid commit_message template (fmtlib error {:?}).", err.what());
-		return false;
+		return std::unexpected(fmt::format(
+			"ERROR: Invalid commit_message template (fmtlib error {:?}).", err.what()));
 	}
 
 	static const RE2 kValidNameRe(R"(^([^\n<>]+\ )*<[^<>\n]+>$)");
@@ -154,23 +159,21 @@ bool Config::IsValid() const
 	{
 		if (!RE2::FullMatch(value, kValidNameRe))
 		{
-			LogError("ERROR: Git identity for SVN user {:?} should be in the format "
-				 "\"Firstname Lastname <email@domain.com>\"",
-				 key);
-			return false;
+			return std::unexpected(fmt::format(
+				"ERROR: Git identity for SVN user {:?} should be in the format \"Firstname Lastname <email@domain.com>\"",
+				key));
 		}
 	}
 
 	if (identityMap.size() == 0 && !overrideDomain)
 	{
-		LogError("ERROR: Please provide an identity map or a domain.");
-		return false;
+		return std::unexpected("ERROR: Please provide an identity map or a domain.");
 	}
 
 	if (identityMap.size() == 0)
 	{
-		LogError("WARNING: No identity map provided. Git author information will be "
-			 "inaccurate.");
+		return std::unexpected(
+			"WARNING: No identity map provided. Git author information will be inaccurate.");
 	}
 
 	try
@@ -179,39 +182,36 @@ bool Config::IsValid() const
 	}
 	catch (const std::exception& e)
 	{
-		LogError("ERROR: Timezone {:?} is not valid.", timezone);
-		return false;
+		return std::unexpected(fmt::format("ERROR: Timezone {:?} is not valid.", timezone));
 	}
 
 	if (!overrideDomain)
 	{
-		LogError("WARNING: No domain provided. Any SVN users not present in the identity "
-			 "map will cause the program to terminate with an error.");
+		return std::unexpected(
+			"WARNING: No domain provided. Any SVN users not present in the identity map will cause the program to terminate with an error.");
 	}
 
 	for (const auto& rule : lfsRules)
 	{
 		if (!rule->ok())
 		{
-			LogError("ERROR: LFS regex {:?} is not valid: {}", rule->pattern(),
-				 rule->error());
-			return false;
+			return std::unexpected(std::format("ERROR: LFS regex {:?} is not valid: {}",
+							   rule->pattern(), rule->error()));
 		}
 	}
 
 	if (rules.size() == 0)
 	{
-		LogError("ERROR: Provide one or more rules.");
-		return false;
+		return std::unexpected("ERROR: Provide one or more rules.");
 	}
 
 	for (const auto& rule : rules)
 	{
 		if (!rule.svnPath->ok())
 		{
-			LogError("ERROR: SVN path {:?} is not valid: {}", rule.svnPath->pattern(),
-				 rule.svnPath->error());
-			return false;
+			return std::unexpected(fmt::format("ERROR: SVN path {:?} is not valid: {}",
+							   rule.svnPath->pattern(),
+							   rule.svnPath->error()));
 		}
 
 		std::string error;
@@ -221,22 +221,20 @@ bool Config::IsValid() const
 		if (rule.repoBranch &&
 		    !rule.svnPath->CheckRewriteString(rule.repoBranch->repository, &error))
 		{
-			LogError(errorMsg, rule.repoBranch->repository, rule.svnPath->pattern(),
-				 error);
-			return false;
+			return std::unexpected(fmt::format(errorMsg, rule.repoBranch->repository,
+							   rule.svnPath->pattern(), error));
 		}
 		if (rule.repoBranch &&
 		    !rule.svnPath->CheckRewriteString(rule.repoBranch->repository, &error))
 		{
-			LogError(errorMsg, rule.repoBranch->repository, rule.svnPath->pattern(),
-				 error);
-			return false;
+			return std::unexpected(fmt::format(errorMsg, rule.repoBranch->repository,
+							   rule.svnPath->pattern(), error));
 		}
 		if (!rule.svnPath->CheckRewriteString(rule.gitPath, &error))
 		{
-			LogError(errorMsg, rule.gitPath, rule.svnPath->pattern(), error);
-			return false;
+			return std::unexpected(fmt::format(errorMsg, rule.gitPath,
+							   rule.svnPath->pattern(), error));
 		}
 	}
-	return true;
+	return {};
 }
