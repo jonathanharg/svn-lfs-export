@@ -1,4 +1,5 @@
 #include "config.hpp"
+#include "svn.hpp"
 #include <apr_general.h>
 #include <apr_hash.h>
 #include <apr_pools.h>
@@ -65,26 +66,6 @@ struct OutputLocation
 	std::string branch;
 	std::string path;
 	bool lfs = false;
-};
-
-class SVNPool
-{
-	apr_pool_t* pool = nullptr;
-
-public:
-	explicit SVNPool(apr_pool_t* parent = nullptr) : pool(svn_pool_create(parent)) {}
-	~SVNPool() { svn_pool_destroy(pool); }
-
-	SVNPool(const SVNPool&) = delete;
-	SVNPool(SVNPool&&) = delete;
-
-	SVNPool& operator=(const SVNPool&) = delete;
-	SVNPool& operator=(SVNPool&&) = delete;
-
-	void clear() { svn_pool_clear(pool); }
-
-	apr_pool_t* operator*() { return pool; };
-	operator apr_pool_t*() const { return pool; }
 };
 
 std::optional<std::string> get_prop(apr_hash_t* hash, const char* prop)
@@ -244,7 +225,7 @@ std::string get_git_time(const Config& config, const std::string& svn_time)
 	return fmt::format("{} {}", unix_epoch, formatted_offset);
 }
 
-int main(int argc, char* argv[])
+int main()
 {
 	argparse::ArgumentParser program("svn-lfs-export");
 	const std::optional<Config> maybe_config = Config::from_file("config.toml");
@@ -305,7 +286,7 @@ int main(int argc, char* argv[])
 	for (long int rev = start_revision; rev <= stop_revision; rev++)
 	{
 		log_info("Converting r{}", rev);
-		SVNPool rev_pool(*root);
+		SVNPool rev_pool;
 
 		svn_fs_root_t* rev_fs = nullptr;
 		err = svn_fs_revision_root(&rev_fs, fs, rev, rev_pool);
