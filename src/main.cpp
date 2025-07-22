@@ -242,7 +242,7 @@ int main()
 	long int startRev = config.minRev.value_or(1);
 	long int stopRev = config.maxRev.value_or(youngestRev);
 
-	LogInfo("Running from revision {} to {}", startRev, stopRev);
+	LogInfo("Running from r{} to r{}", startRev, stopRev);
 
 	// 1. For each revision, get revision properties
 	//     - Author
@@ -319,12 +319,12 @@ int main()
 			std::optional<OutputLocation> destination =
 				MapPathToOutput(config, rev, path);
 
-			LogError("{} {}: {:?} (mod text {}, props {})", changeKind, nodeKind, path,
-				 textMod, propMod);
+			LogError("SVN {} {}: {:?} (mod text {}, props {})", changeKind, nodeKind,
+				 path, textMod, propMod);
 
 			if (destination)
 			{
-				LogError("> {}/{} {} (LFS {})", destination->repo,
+				LogError("-> {}/{} {} (LFS {})", destination->repo,
 					 destination->branch, destination->path, destination->lfs);
 			}
 
@@ -347,16 +347,16 @@ int main()
 			err = svn_fs_file_length(&fileSize, revFs, path.c_str(), revPool);
 			SVN_INT_ERR(err);
 
-			std::unique_ptr<char[]> buffer(new char[fileSize]);
+			std::vector<char> buffer(fileSize);
 
 			// WARNING: This will probably overflow
 			apr_size_t readSize = fileSize;
-			err = svn_stream_read_full(content, buffer.get(), &readSize);
+			err = svn_stream_read_full(content, buffer.data(), &readSize);
 
-			std::string_view file{buffer.get(), static_cast<size_t>(fileSize)};
+			std::string_view file{buffer.data(), static_cast<size_t>(fileSize)};
 
 			Output("M {} inline {}", static_cast<int>(GitMode::Normal),
-			       &path.c_str()[1]);
+			       destination->path.c_str());
 			Output("data {}\n{}", file.length(), file);
 
 			err = svn_fs_path_change_get(&changes, it);
