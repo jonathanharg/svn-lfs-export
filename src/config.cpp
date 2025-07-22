@@ -9,239 +9,237 @@
 #include <utility>
 
 template <typename... T>
-inline void log_error(fmt::format_string<T...> fmt, T&&... args)
+inline void LogError(fmt::format_string<T...> fmt, T&&... args)
 {
 	fmt::println(std::cerr, fmt, std::forward<T>(args)...);
 }
 
-std::optional<Config> Config::from_file(const std::string_view& path)
+std::optional<Config> Config::FromFile(const std::string_view& path)
 {
-	const toml::parse_result file_read = toml::parse_file(path);
+	const toml::parse_result fileRead = toml::parse_file(path);
 
-	if (!file_read)
+	if (!fileRead)
 	{
-		log_error("ERROR: Failed to parse config.toml - {}",
-			  file_read.error().description());
+		LogError("ERROR: Failed to parse config.toml - {}", fileRead.error().description());
 		return std::nullopt;
 	}
 
-	const toml::table& root = file_read.table();
+	const toml::table& root = fileRead.table();
 
 	Config result;
-	result.min_revision = root["min_revision"].value<long int>();
-	result.max_revision = root["max_revision"].value<long int>();
-	result.override_domain = root["domain"].value<std::string>();
-	result.create_base_commit = root["create_base_commit"].value_or(kDefaultCreateBaseCommit);
-	result.strict_mode = root["strict_mode"].value_or(kDefaultStrictMode);
-	result.time_zone = root["time_zone"].value_or(kDefaultTimeZone);
-	result.commit_message = root["commit_message"].value_or(kDefaultCommitMessage);
+	result.minRev = root["min_revision"].value<long int>();
+	result.maxRev = root["max_revision"].value<long int>();
+	result.overrideDomain = root["domain"].value<std::string>();
+	result.createBaseCommit = root["create_base_commit"].value_or(kDefaultCreateBaseCommit);
+	result.strictMode = root["strict_mode"].value_or(kDefaultStrictMode);
+	result.timezone = root["time_zone"].value_or(kDefaultTimeZone);
+	result.commitMessage = root["commit_message"].value_or(kDefaultCommitMessage);
 
-	const auto repository_value = root["svn_repository"].value<std::string>();
+	const auto repositoryValue = root["svn_repository"].value<std::string>();
 
-	if (!repository_value)
+	if (!repositoryValue)
 	{
-		log_error("ERROR: Failed to parse the SVN repository string. Make sure a valid "
-			  "path to a on-disk SVN repository is provided.");
+		LogError("ERROR: Failed to parse the SVN repository string. Make sure a valid "
+			 "path to a on-disk SVN repository is provided.");
 		return std::nullopt;
 	}
 
-	result.svn_repository = *repository_value;
+	result.svnRepo = *repositoryValue;
 
-	const toml::table* identity_table = root["identity_map"].as_table();
+	const toml::table* identityTable = root["identity_map"].as_table();
 
-	if (identity_table)
+	if (identityTable)
 	{
-		for (auto&& [key, value] : *identity_table)
+		for (auto&& [key, value] : *identityTable)
 		{
-			const auto git_identity = value.value<std::string>();
-			if (!git_identity)
+			const auto gitIdentity = value.value<std::string>();
+			if (!gitIdentity)
 			{
-				log_error("ERROR: Git identity for SVN user {:?} is invalid.",
-					  key.str());
+				LogError("ERROR: Git identity for SVN user {:?} is invalid.",
+					 key.str());
 				return std::nullopt;
 			}
-			result.identity_map[std::string(key.str())] = *git_identity;
+			result.identityMap[std::string(key.str())] = *gitIdentity;
 		}
 	}
 
-	const toml::array* lfs_config = root["LFS"].as_array();
+	const toml::array* lfsConfig = root["LFS"].as_array();
 
-	if (lfs_config)
+	if (lfsConfig)
 	{
-		for (const toml::node& rule : *lfs_config)
+		for (const toml::node& rule : *lfsConfig)
 		{
 			const auto expression = rule.value<std::string_view>();
 			if (!expression)
 			{
-				log_error("ERROR: LFS must be defined as an array of regular "
-					  "expressions.");
+				LogError("ERROR: LFS must be defined as an array of regular "
+					 "expressions.");
 				return std::nullopt;
 			}
 
-			result.lfs_rules.emplace_back(std::make_unique<RE2>(*expression));
+			result.lfsRules.emplace_back(std::make_unique<RE2>(*expression));
 		}
 	}
 
-	const toml::array* rules_config = root["rule"].as_array();
+	const toml::array* rulesConfig = root["rule"].as_array();
 
-	if (!rules_config)
+	if (!rulesConfig)
 	{
-		log_error("ERROR: Expected rules to be an array of tables defined using one or "
-			  "more [[rule]] statements.");
+		LogError("ERROR: Expected rules to be an array of tables defined using one or "
+			 "more [[rule]] statements.");
 		return std::nullopt;
 	}
 
-	for (const toml::node& rule : *rules_config)
+	for (const toml::node& rule : *rulesConfig)
 	{
 		if (!rule.as_table())
 		{
-			log_error("ERROR: Expected rules to be an array of tables defined using "
-				  "one or more [[rule]] statements.");
+			LogError("ERROR: Expected rules to be an array of tables defined using "
+				 "one or more [[rule]] statements.");
 			return std::nullopt;
 		}
 		const toml::table& table = *rule.as_table();
 
-		const auto svn_path = table["svn_path"].value<std::string_view>();
+		const auto svnPath = table["svn_path"].value<std::string_view>();
 		const auto repository = table["repository"].value<std::string>();
 		const auto branch = table["branch"].value<std::string>();
-		const std::string git_path = table["git_path"].value_or("");
+		const std::string gitPath = table["git_path"].value_or("");
 
-		if (!svn_path)
+		if (!svnPath)
 		{
-			log_error("ERROR: Provide an svn_path for each rule.");
+			LogError("ERROR: Provide an svn_path for each rule.");
 			return std::nullopt;
 		}
 		if (repository.has_value() != branch.has_value())
 		{
-			log_error("ERROR: For {} both a repository and a branch must be provided, "
-				  "or neither should be provided .",
-				  *svn_path);
+			LogError("ERROR: For {} both a repository and a branch must be provided, "
+				 "or neither should be provided .",
+				 *svnPath);
 			return std::nullopt;
 		}
 
-		std::optional<Rule::RepoBranch> repo_branch = {};
+		std::optional<Rule::RepoBranch> repoBranch = {};
 		if (repository && branch)
 		{
-			repo_branch = Rule::RepoBranch{*repository, *branch};
+			repoBranch = Rule::RepoBranch{*repository, *branch};
 		}
 
-		const auto min_revision = table["min_revision"].value<long int>();
-		const auto max_revision = table["max_revision"].value<long int>();
+		const auto minRev = table["min_revision"].value<long int>();
+		const auto maxRev = table["max_revision"].value<long int>();
 
-		result.rules.emplace_back(std::make_unique<RE2>(*svn_path), repo_branch, git_path,
-					  min_revision, max_revision);
+		result.rules.emplace_back(std::make_unique<RE2>(*svnPath), repoBranch, gitPath,
+					  minRev, maxRev);
 	}
 
 	return result;
 }
 
-bool Config::is_valid() const
+bool Config::IsValid() const
 {
-	if (!std::filesystem::is_directory(svn_repository))
+	if (!std::filesystem::is_directory(svnRepo))
 	{
-		log_error("ERROR: Repository path {:?} is not a directory that can be found.",
-			  svn_repository);
+		LogError("ERROR: Repository path {:?} is not a directory that can be found.",
+			 svnRepo);
 		return false;
 	}
 
 	try
 	{
-		(void)fmt::format(fmt::runtime(commit_message), fmt::arg("log", "log msg"),
+		(void)fmt::format(fmt::runtime(commitMessage), fmt::arg("log", "log msg"),
 				  fmt::arg("usr", "sean"), fmt::arg("rev", 1));
 	}
 	catch (fmt::v11::format_error& err)
 	{
-		log_error("ERROR: Invalid commit_message template (fmtlib error {:?}).",
-			  err.what());
+		LogError("ERROR: Invalid commit_message template (fmtlib error {:?}).", err.what());
 		return false;
 	}
 
-	static const RE2 valid_name_re(R"(^([^\n<>]+\ )*<[^<>\n]+>$)");
-	for (auto&& [key, value] : identity_map)
+	static const RE2 kValidNameRe(R"(^([^\n<>]+\ )*<[^<>\n]+>$)");
+	for (auto&& [key, value] : identityMap)
 	{
-		if (!RE2::FullMatch(value, valid_name_re))
+		if (!RE2::FullMatch(value, kValidNameRe))
 		{
-			log_error("ERROR: Git identity for SVN user {:?} should be in the format "
-				  "\"Firstname Lastname <email@domain.com>\"",
-				  key);
+			LogError("ERROR: Git identity for SVN user {:?} should be in the format "
+				 "\"Firstname Lastname <email@domain.com>\"",
+				 key);
 			return false;
 		}
 	}
 
-	if (identity_map.size() == 0 && !override_domain)
+	if (identityMap.size() == 0 && !overrideDomain)
 	{
-		log_error("ERROR: Please provide an identity map or a domain.");
+		LogError("ERROR: Please provide an identity map or a domain.");
 		return false;
 	}
 
-	if (identity_map.size() == 0)
+	if (identityMap.size() == 0)
 	{
-		log_error("WARNING: No identity map provided. Git author information will be "
-			  "inaccurate.");
+		LogError("WARNING: No identity map provided. Git author information will be "
+			 "inaccurate.");
 	}
 
 	try
 	{
-		date::locate_zone(time_zone);
+		date::locate_zone(timezone);
 	}
 	catch (const std::exception& e)
 	{
-		log_error("ERROR: Timezone {:?} is not valid.", time_zone);
+		LogError("ERROR: Timezone {:?} is not valid.", timezone);
 		return false;
 	}
 
-	if (!override_domain)
+	if (!overrideDomain)
 	{
-		log_error("WARNING: No domain provided. Any SVN users not present in the identity "
-			  "map will cause the program to terminate with an error.");
+		LogError("WARNING: No domain provided. Any SVN users not present in the identity "
+			 "map will cause the program to terminate with an error.");
 	}
 
-	for (const auto& rule : lfs_rules)
+	for (const auto& rule : lfsRules)
 	{
 		if (!rule->ok())
 		{
-			log_error("ERROR: LFS regex {:?} is not valid: {}", rule->pattern(),
-				  rule->error());
+			LogError("ERROR: LFS regex {:?} is not valid: {}", rule->pattern(),
+				 rule->error());
 			return false;
 		}
 	}
 
 	if (rules.size() == 0)
 	{
-		log_error("ERROR: Provide one or more rules.");
+		LogError("ERROR: Provide one or more rules.");
 		return false;
 	}
 
 	for (const auto& rule : rules)
 	{
-		if (!rule.svn_path->ok())
+		if (!rule.svnPath->ok())
 		{
-			log_error("ERROR: SVN path {:?} is not valid: {}", rule.svn_path->pattern(),
-				  rule.svn_path->error());
+			LogError("ERROR: SVN path {:?} is not valid: {}", rule.svnPath->pattern(),
+				 rule.svnPath->error());
 			return false;
 		}
 
 		std::string error;
-		static constexpr const char* error_message =
+		static constexpr const char* errorMsg =
 			R"(ERROR: Could not rewrite "{}" with the regex "{}" - {})";
 
-		if (rule.repo_branch &&
-		    !rule.svn_path->CheckRewriteString(rule.repo_branch->repository, &error))
+		if (rule.repoBranch &&
+		    !rule.svnPath->CheckRewriteString(rule.repoBranch->repository, &error))
 		{
-			log_error(error_message, rule.repo_branch->repository,
-				  rule.svn_path->pattern(), error);
+			LogError(errorMsg, rule.repoBranch->repository, rule.svnPath->pattern(),
+				 error);
 			return false;
 		}
-		if (rule.repo_branch &&
-		    !rule.svn_path->CheckRewriteString(rule.repo_branch->repository, &error))
+		if (rule.repoBranch &&
+		    !rule.svnPath->CheckRewriteString(rule.repoBranch->repository, &error))
 		{
-			log_error(error_message, rule.repo_branch->repository,
-				  rule.svn_path->pattern(), error);
+			LogError(errorMsg, rule.repoBranch->repository, rule.svnPath->pattern(),
+				 error);
 			return false;
 		}
-		if (!rule.svn_path->CheckRewriteString(rule.git_path, &error))
+		if (!rule.svnPath->CheckRewriteString(rule.gitPath, &error))
 		{
-			log_error(error_message, rule.git_path, rule.svn_path->pattern(), error);
+			LogError(errorMsg, rule.gitPath, rule.svnPath->pattern(), error);
 			return false;
 		}
 	}

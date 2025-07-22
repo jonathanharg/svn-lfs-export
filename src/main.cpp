@@ -26,28 +26,28 @@
 #include <vector>
 
 template <typename... T>
-inline void log_error(fmt::format_string<T...> fmt, T&&... args)
+inline void LogError(fmt::format_string<T...> fmt, T&&... args)
 {
 	fmt::println(std::cerr, fmt, std::forward<T>(args)...);
 }
 
 template <typename... T>
-inline void log_info(fmt::format_string<T...> fmt, T&&... args)
+inline void LogInfo(fmt::format_string<T...> fmt, T&&... args)
 {
 	fmt::println("progress {}", fmt::format(fmt, std::forward<T>(args)...));
 }
 
 template <typename... T>
-inline void output(fmt::format_string<T...> fmt, T&&... args)
+inline void Output(fmt::format_string<T...> fmt, T&&... args)
 {
 	fmt::println(fmt, std::forward<T>(args)...);
 }
 
-constexpr std::array<std::string_view, 5> path_change_strings = {
+constexpr std::array<std::string_view, 5> kPathChangeStrings = {
 	"Modified", "Add", "Delete", "Replace", "Reset" /* Unused */
 };
 
-constexpr std::array<std::string_view, 5> node_kind_strings = {
+constexpr std::array<std::string_view, 5> kNodeKindStrings = {
 	"None", "File", "Directory", "Unknown", "Symlink" /* Unused */
 };
 
@@ -68,7 +68,7 @@ struct OutputLocation
 	bool lfs = false;
 };
 
-std::optional<std::string> get_prop(apr_hash_t* hash, const char* prop)
+std::optional<std::string> GetProp(apr_hash_t* hash, const char* prop)
 {
 	auto* value = static_cast<svn_string_t*>(apr_hash_get(hash, prop, APR_HASH_KEY_STRING));
 	if (value)
@@ -78,8 +78,8 @@ std::optional<std::string> get_prop(apr_hash_t* hash, const char* prop)
 	return {};
 };
 
-std::optional<OutputLocation> map_path_to_output(const Config& config, const long int revision,
-						 const std::string_view& path)
+std::optional<OutputLocation> MapPathToOutput(const Config& config, const long int revision,
+					      const std::string_view& path)
 {
 	const std::vector<Rule>& rules = config.rules;
 
@@ -100,65 +100,65 @@ std::optional<OutputLocation> map_path_to_output(const Config& config, const lon
 		// 8. Check if GIT PATH full matches with a rule in LFS RULES
 		// 9. Output GIT REPO, GIT BRANCH, a GIT PATH, and if LFS
 
-		if (rule.min_revision && *rule.min_revision > revision)
+		if (rule.minRevision && *rule.minRevision > revision)
 		{
 			continue;
 		}
-		if (rule.max_revision && *rule.max_revision < revision)
+		if (rule.maxRevision && *rule.maxRevision < revision)
 		{
 			continue;
 		}
 
-		int captures_groups = rule.svn_path->NumberOfCapturingGroups();
+		int capturesGroups = rule.svnPath->NumberOfCapturingGroups();
 
-		std::vector<std::string_view> captures_views(captures_groups);
+		std::vector<std::string_view> capturesViews(capturesGroups);
 
 		// Use two vectors so we can "spoof" a const Arg* const args[]
 		// C-style array for ConsumeN that's dynamically sized based on
 		// the number of captures in the provided regex.
-		std::vector<RE2::Arg> args(captures_groups);
-		std::vector<RE2::Arg*> arg_ptrs(captures_groups);
+		std::vector<RE2::Arg> args(capturesGroups);
+		std::vector<RE2::Arg*> argPtrs(capturesGroups);
 
-		for (int i = 0; i < captures_groups; ++i)
+		for (int i = 0; i < capturesGroups; ++i)
 		{
-			args[i] = RE2::Arg(&captures_views[i]);
-			arg_ptrs[i] = &args[i];
+			args[i] = RE2::Arg(&capturesViews[i]);
+			argPtrs[i] = &args[i];
 		}
 
-		std::string_view consume_ptr(path);
-		if (!RE2::ConsumeN(&consume_ptr, *rule.svn_path, arg_ptrs.data(), captures_groups))
+		std::string_view consumePtr(path);
+		if (!RE2::ConsumeN(&consumePtr, *rule.svnPath, argPtrs.data(), capturesGroups))
 		{
 			continue;
 		}
 
 		// Insert the whole capture so the \0 substitution can be used properly
-		auto whole_capture_begin = path.begin();
-		auto whole_capture_end = consume_ptr.begin();
-		captures_views.emplace(captures_views.begin(), whole_capture_begin,
-				       whole_capture_end);
+		auto wholeCaptureBegin = path.begin();
+		auto wholeCaptureEnd = consumePtr.begin();
+		capturesViews.emplace(capturesViews.begin(), wholeCaptureBegin,
+				       wholeCaptureEnd);
 
-		if (!rule.repo_branch)
+		if (!rule.repoBranch)
 		{
 			break;
 		}
 
 		OutputLocation result;
 
-		rule.svn_path->Rewrite(&result.repository, rule.repo_branch->repository,
-				       captures_views.data(), captures_groups + 1);
+		rule.svnPath->Rewrite(&result.repository, rule.repoBranch->repository,
+				      capturesViews.data(), capturesGroups + 1);
 
-		rule.svn_path->Rewrite(&result.branch, rule.repo_branch->branch,
-				       captures_views.data(), captures_groups + 1);
+		rule.svnPath->Rewrite(&result.branch, rule.repoBranch->branch,
+				      capturesViews.data(), capturesGroups + 1);
 
-		rule.svn_path->Rewrite(&result.path, rule.git_path, captures_views.data(),
-				       captures_groups + 1);
+		rule.svnPath->Rewrite(&result.path, rule.gitPath, capturesViews.data(),
+				      capturesGroups + 1);
 
 		// Append any of the non-captured SVN path to the output git path
-		result.path.append(consume_ptr);
+		result.path.append(consumePtr);
 
-		for (const auto& lfs_rule : config.lfs_rules)
+		for (const auto& lfsRule : config.lfsRules)
 		{
-			if (RE2::FullMatch(result.path, *lfs_rule))
+			if (RE2::FullMatch(result.path, *lfsRule))
 			{
 				result.lfs = true;
 				break;
@@ -170,30 +170,30 @@ std::optional<OutputLocation> map_path_to_output(const Config& config, const lon
 	return std::nullopt;
 }
 
-std::string get_git_author(const Config& config, const std::optional<std::string>& svn_username)
+std::string GetGitAuthor(const Config& config, const std::optional<std::string>& svnUsername)
 {
-	const std::string& domain = config.override_domain.value_or("localhost");
+	const std::string& domain = config.overrideDomain.value_or("localhost");
 
-	if (!svn_username.has_value())
+	if (!svnUsername.has_value())
 	{
 		return fmt::format("Unknown User <unknown@{}>", domain);
 	}
-	if (config.identity_map.contains(*svn_username))
+	if (config.identityMap.contains(*svnUsername))
 	{
-		return config.identity_map.at(*svn_username);
+		return config.identityMap.at(*svnUsername);
 	}
 
-	return fmt::format("{} <{}@{}>", *svn_username, *svn_username, domain);
+	return fmt::format("{} <{}@{}>", *svnUsername, *svnUsername, domain);
 }
 
-std::string get_commit_message(const Config& config, const std::string& svn_log,
-			       const std::string& svn_username, long int revision)
+std::string GetCommitMessage(const Config& config, const std::string& svnLog,
+			     const std::string& svnUsername, long int revision)
 {
-	return fmt::format(fmt::runtime(config.commit_message), fmt::arg("log", svn_log),
-			   fmt::arg("usr", svn_username), fmt::arg("rev", revision));
+	return fmt::format(fmt::runtime(config.commitMessage), fmt::arg("log", svnLog),
+			   fmt::arg("usr", svnUsername), fmt::arg("rev", revision));
 }
 
-std::string get_git_time(const Config& config, const std::string& svn_time)
+std::string GetGitTime(const Config& config, const std::string& svnTime)
 {
 	// It looks like SVN stores dates in UTC time
 	// https://svn.haxx.se/users/archive-2003-09/0322.shtml
@@ -201,41 +201,41 @@ std::string get_git_time(const Config& config, const std::string& svn_time)
 	// to Unix Epoch time (which git uses). We might however, want to apply a local
 	// UTC offset based on the location of the server.
 
-	std::istringstream date_stream{svn_time};
-	std::chrono::sys_time<std::chrono::milliseconds> utc_time;
-	date_stream >> date::parse("%FT%T%Ez", utc_time);
+	std::istringstream dateStream{svnTime};
+	std::chrono::sys_time<std::chrono::milliseconds> utcTime;
+	dateStream >> date::parse("%FT%T%Ez", utcTime);
 
 	// I'm 90% sure SVN stores UTC with 6 decimal places / microseconds
 	// But add a fail-safe to parse 0 decimal places / seconds
-	if (date_stream.fail())
+	if (dateStream.fail())
 	{
-		date_stream.clear();
-		date_stream.exceptions(std::ios::failbit);
-		date_stream.str(svn_time);
-		date_stream >> date::parse("%FT%TZ", utc_time);
+		dateStream.clear();
+		dateStream.exceptions(std::ios::failbit);
+		dateStream.str(svnTime);
+		dateStream >> date::parse("%FT%TZ", utcTime);
 	}
-	static const date::time_zone* tz = date::get_tzdb().locate_zone(config.time_zone);
+	static const date::time_zone* tz = date::get_tzdb().locate_zone(config.timezone);
 
-	date::zoned_time<std::chrono::milliseconds> zoned_time{tz, utc_time};
-	std::string formatted_offset = date::format("%z", zoned_time);
+	date::zoned_time<std::chrono::milliseconds> zonedTime{tz, utcTime};
+	std::string formattedOffset = date::format("%z", zonedTime);
 
-	auto unix_epoch =
-		std::chrono::duration_cast<std::chrono::seconds>(utc_time.time_since_epoch())
+	auto unixEpoch =
+		std::chrono::duration_cast<std::chrono::seconds>(utcTime.time_since_epoch())
 			.count();
-	return fmt::format("{} {}", unix_epoch, formatted_offset);
+	return fmt::format("{} {}", unixEpoch, formattedOffset);
 }
 
 int main()
 {
 	argparse::ArgumentParser program("svn-lfs-export");
-	const std::optional<Config> maybe_config = Config::from_file("config.toml");
+	const std::optional<Config> maybeConfig = Config::FromFile("config.toml");
 
-	if (!maybe_config || !maybe_config->is_valid())
+	if (!maybeConfig || !maybeConfig->IsValid())
 	{
 		return EXIT_FAILURE;
 	}
 
-	const Config& config = maybe_config.value();
+	const Config& config = maybeConfig.value();
 
 	apr_initialize();
 	SVNPool root;
@@ -243,24 +243,24 @@ int main()
 	svn_repos_t* repository = nullptr;
 	svn_error_t* err = nullptr;
 
-	err = svn_repos_open3(&repository, config.svn_repository.c_str(), nullptr, root, scratch);
+	err = svn_repos_open3(&repository, config.svnRepo.c_str(), nullptr, root, scratch);
 	SVN_INT_ERR(err);
 
 	svn_fs_t* fs = svn_repos_fs(repository);
 	if (!fs)
 	{
-		log_error("ERROR: SVN failed to open fs.");
+		LogError("ERROR: SVN failed to open fs.");
 		return EXIT_FAILURE;
 	}
 
-	long int youngest_revision = 1;
-	err = svn_fs_youngest_rev(&youngest_revision, fs, scratch);
+	long int youngestRev = 1;
+	err = svn_fs_youngest_rev(&youngestRev, fs, scratch);
 	SVN_INT_ERR(err);
 
-	long int start_revision = config.min_revision.value_or(1);
-	long int stop_revision = config.max_revision.value_or(youngest_revision);
+	long int startRev = config.minRev.value_or(1);
+	long int stopRev = config.maxRev.value_or(youngestRev);
 
-	log_info("Running from revision {} to {}", start_revision, stop_revision);
+	LogInfo("Running from revision {} to {}", startRev, stopRev);
 
 	// 1. For each revision, get revision properties
 	//     - Author
@@ -283,32 +283,32 @@ int main()
 	//  - Branch creation, working out "from" commit
 	//  - Merging?
 
-	for (long int rev = start_revision; rev <= stop_revision; rev++)
+	for (long int rev = startRev; rev <= stopRev; rev++)
 	{
-		log_info("Converting r{}", rev);
-		SVNPool rev_pool;
+		LogInfo("Converting r{}", rev);
+		SVNPool revPool;
 
-		svn_fs_root_t* rev_fs = nullptr;
-		err = svn_fs_revision_root(&rev_fs, fs, rev, rev_pool);
+		svn_fs_root_t* revFs = nullptr;
+		err = svn_fs_revision_root(&revFs, fs, rev, revPool);
 		SVN_INT_ERR(err);
 
-		apr_hash_t* rev_props = nullptr;
-		err = svn_fs_revision_proplist2(&rev_props, fs, rev, false, rev_pool, scratch);
+		apr_hash_t* revProps = nullptr;
+		err = svn_fs_revision_proplist2(&revProps, fs, rev, false, revPool, scratch);
 		SVN_INT_ERR(err);
 
 		static constexpr const char* epoch = "1970-01-01T00:00:00Z";
 
-		auto author_prop = get_prop(rev_props, SVN_PROP_REVISION_AUTHOR);
-		auto log_prop = get_prop(rev_props, SVN_PROP_REVISION_LOG).value_or("");
-		auto date_prop = get_prop(rev_props, SVN_PROP_REVISION_DATE).value_or(epoch);
+		auto authorProp = GetProp(revProps, SVN_PROP_REVISION_AUTHOR);
+		auto logProp = GetProp(revProps, SVN_PROP_REVISION_LOG).value_or("");
+		auto dateProp = GetProp(revProps, SVN_PROP_REVISION_DATE).value_or(epoch);
 
-		std::string git_author = get_git_author(config, author_prop);
-		std::string git_message =
-			get_commit_message(config, log_prop, author_prop.value_or("unknown"), rev);
-		std::string git_time = get_git_time(config, date_prop);
+		std::string gitAuthor = GetGitAuthor(config, authorProp);
+		std::string gitMessage =
+			GetCommitMessage(config, logProp, authorProp.value_or("unknown"), rev);
+		std::string gitTime = GetGitTime(config, dateProp);
 
 		svn_fs_path_change_iterator_t* it = nullptr;
-		err = svn_fs_paths_changed3(&it, rev_fs, rev_pool, scratch);
+		err = svn_fs_paths_changed3(&it, revFs, revPool, scratch);
 		SVN_INT_ERR(err);
 
 		svn_fs_path_change3_t* changes = nullptr;
@@ -317,33 +317,33 @@ int main()
 
 		// TODO: Make the commit after first gathering files
 		std::string ref = "refs/heads/main";
-		output("commit {}", ref);
-		output("committer {} {}", git_author, git_time);
-		output("data {}\n{}", git_message.length(), git_message);
+		Output("commit {}", ref);
+		Output("committer {} {}", gitAuthor, gitTime);
+		Output("data {}\n{}", gitMessage.length(), gitMessage);
 
 		while (changes)
 		{
 			std::string path{changes->path.data, changes->path.len};
-			std::string_view change_kind = path_change_strings.at(changes->change_kind);
-			std::string_view node_kind = node_kind_strings.at(changes->node_kind);
+			std::string_view changeKind = kPathChangeStrings.at(changes->change_kind);
+			std::string_view nodeKind = kNodeKindStrings.at(changes->node_kind);
 
-			bool text_mod = changes->text_mod;
-			bool prop_mod = changes->prop_mod;
+			bool textMod = changes->text_mod;
+			bool propMod = changes->prop_mod;
 
 			// TODO: Get Copy from and mergeinfo
 			// => Copy from might help performance / eliminate unnecessary duplication
 			// => merge info might help us create branches
 
 			std::optional<OutputLocation> destination =
-				map_path_to_output(config, rev, path);
+				MapPathToOutput(config, rev, path);
 
-			log_error("{} {}: {:?} (mod text {}, props {})", change_kind, node_kind,
-				  path, text_mod, prop_mod);
+			LogError("{} {}: {:?} (mod text {}, props {})", changeKind, nodeKind,
+				 path, textMod, propMod);
 
 			if (destination)
 			{
-				log_error("> {}/{} {} (LFS {})", destination->repository,
-					  destination->branch, destination->path, destination->lfs);
+				LogError("> {}/{} {} (LFS {})", destination->repository,
+					 destination->branch, destination->path, destination->lfs);
 			}
 
 			// TODO: are we sure we can skip over directories here?
@@ -357,25 +357,25 @@ int main()
 			svn_stream_t* content = nullptr;
 			// TODO: Should probably free these pools early?
 			// or have a file level pool
-			err = svn_fs_file_contents(&content, rev_fs, path.c_str(), rev_pool);
+			err = svn_fs_file_contents(&content, revFs, path.c_str(), revPool);
 			SVN_INT_ERR(err);
 
-			svn_filesize_t file_size = 0;
+			svn_filesize_t fileSize = 0;
 			// TODO: I'm not sure if we want/need to be doing this
-			err = svn_fs_file_length(&file_size, rev_fs, path.c_str(), rev_pool);
+			err = svn_fs_file_length(&fileSize, revFs, path.c_str(), revPool);
 			SVN_INT_ERR(err);
 
-			std::unique_ptr<char[]> buffer(new char[file_size]);
+			std::unique_ptr<char[]> buffer(new char[fileSize]);
 
 			// WARNING: This will probably overflow
-			apr_size_t read_size = file_size;
-			err = svn_stream_read_full(content, buffer.get(), &read_size);
+			apr_size_t readSize = fileSize;
+			err = svn_stream_read_full(content, buffer.get(), &readSize);
 
-			std::string_view file{buffer.get(), static_cast<size_t>(file_size)};
+			std::string_view file{buffer.get(), static_cast<size_t>(fileSize)};
 
-			output("M {} inline {}", static_cast<int>(GitMode::Normal),
+			Output("M {} inline {}", static_cast<int>(GitMode::Normal),
 			       &path.c_str()[1]);
-			output("data {}\n{}", file.length(), file);
+			Output("data {}\n{}", file.length(), file);
 
 			err = svn_fs_path_change_get(&changes, it);
 			SVN_INT_ERR(err);

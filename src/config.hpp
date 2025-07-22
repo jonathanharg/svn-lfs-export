@@ -14,29 +14,29 @@ struct Rule
 		std::string repository;
 		std::string branch;
 	};
-	std::unique_ptr<RE2> svn_path;
-	std::optional<RepoBranch> repo_branch;
-	std::string git_path;
-	std::optional<long int> min_revision;
-	std::optional<long int> max_revision;
+	std::unique_ptr<RE2> svnPath;
+	std::optional<RepoBranch> repoBranch;
+	std::string gitPath;
+	std::optional<long int> minRevision;
+	std::optional<long int> maxRevision;
 };
 
 struct Config
 {
-	bool create_base_commit = false;
-	bool strict_mode = false;
-	std::optional<long int> min_revision;
-	std::optional<long int> max_revision;
-	std::string svn_repository;
-	std::optional<std::string> override_domain;
-	std::string time_zone;
-	std::string commit_message;
+	bool createBaseCommit = false;
+	bool strictMode = false;
+	std::optional<long int> minRev;
+	std::optional<long int> maxRev;
+	std::string svnRepo;
+	std::optional<std::string> overrideDomain;
+	std::string timezone;
+	std::string commitMessage;
 	std::vector<Rule> rules;
-	std::vector<std::unique_ptr<RE2>> lfs_rules;
-	std::unordered_map<std::string, std::string> identity_map;
+	std::vector<std::unique_ptr<RE2>> lfsRules;
+	std::unordered_map<std::string, std::string> identityMap;
 
-	[[nodiscard]] bool is_valid() const;
-	static std::optional<Config> from_file(const std::string_view&);
+	[[nodiscard]] bool IsValid() const;
+	static std::optional<Config> FromFile(const std::string_view&);
 
 private:
 	static constexpr bool kDefaultCreateBaseCommit = false;
