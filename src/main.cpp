@@ -352,6 +352,7 @@ int main()
 			// WARNING: This will probably overflow
 			apr_size_t readSize = fileSize;
 			err = svn_stream_read_full(content, buffer.data(), &readSize);
+			SVN_INT_ERR(err);
 
 			std::string_view file{buffer.data(), static_cast<size_t>(fileSize)};
 

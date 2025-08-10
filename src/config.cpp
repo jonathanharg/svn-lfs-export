@@ -195,7 +195,7 @@ std::expected<void, std::string> Config::IsValid() const
 	{
 		if (!rule->ok())
 		{
-			return std::unexpected(std::format("ERROR: LFS regex {:?} is not valid: {}",
+			return std::unexpected(fmt::format("ERROR: LFS regex {:?} is not valid: {}",
 							   rule->pattern(), rule->error()));
 		}
 	}
