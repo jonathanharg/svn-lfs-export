@@ -1,99 +1,70 @@
 cmake_minimum_required(VERSION 3.28)
-project(svn-lfs-export)
 
-include(FetchContent)
+project(
+	svn-lfs-export
+	VERSION 0.1.0
+	LANGUAGES CXX
+)
+
+get_filename_component(SRCDIR "${CMAKE_SOURCE_DIR}" REALPATH)
+get_filename_component(BINDIR "${CMAKE_BINARY_DIR}" REALPATH)
+if(SRCDIR STREQUAL BINDIR)
+	message(FATAL_ERROR "Run CMake from a build directory.")
+endif()
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules")
 
 set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_BUILD_TYPE debug)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-FetchContent_Declare(
-	fmt
-	GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-	GIT_TAG 11.1.4
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+	message(STATUS "Setting build type to 'RelWithDebInfo' as none was specified.")
+	set(CMAKE_BUILD_TYPE
+		RelWithDebInfo
+		CACHE STRING "Choose the type of build." FORCE
+	)
+	# Set the possible values of build type for cmake-gui, ccmake
+	set_property(
+		CACHE CMAKE_BUILD_TYPE
+		PROPERTY STRINGS
+				 "Debug"
+				 "Release"
+				 "MinSizeRel"
+				 "RelWithDebInfo"
+	)
+endif()
+
+option(ENABLE_WARNINGS_AS_ERRORS "Treat Warnings As Errors" OFF)
+
+include(cmake/dependencies.cmake)
+find_package(APR REQUIRED)
+find_package(Subversion REQUIRED)
+
+file(
+	GLOB_RECURSE
+	sources
+	CONFIGURE_DEPENDS
+	"${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
 )
-FetchContent_MakeAvailable(fmt)
+add_executable(${PROJECT_NAME} ${sources})
 
-FetchContent_Declare(
-	argparse
-	GIT_REPOSITORY https://github.com/p-ranav/argparse.git
-	GIT_TAG v3.2
-)
-FetchContent_MakeAvailable(argparse)
+include(cmake/warnings.cmake)
 
-FetchContent_Declare(
-	tomlplusplus
-	GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
-	GIT_TAG v3.4.0
-)
-FetchContent_MakeAvailable(tomlplusplus)
-
-FetchContent_Declare(
-	re2
-	GIT_REPOSITORY https://github.com/google/re2.git
-	GIT_TAG 2024-07-02
-)
-FetchContent_MakeAvailable(re2)
-
-FetchContent_Declare(
-	date
-	GIT_REPOSITORY https://github.com/HowardHinnant/date.git
-	GIT_TAG v3.0.3
-)
-set(BUILD_TZ_LIB ON CACHE BOOL "Build date/tz library")
-set(USE_SYSTEM_TZ_DB ON CACHE BOOL "Use system time zone database")
-FetchContent_MakeAvailable(date)
-
-find_path(
-	APR_INCLUDE_DIR
-	NAMES apr.h
-	PATH_SUFFIXES include include/apr-1 include/apr-1.0
-	REQUIRED
-)
-
-find_path(
-	SVN_INCLUDE_DIR
-	NAMES svn_client.h
-	PATH_SUFFIXES include include/subversion-1 include/subversion-1.0
-	REQUIRED
-)
-
-find_library(
-	APR_LIBRARY
-	NAMES apr-1
-	PATH_SUFFIXES lib
-	HINTS "/opt/homebrew/opt/apr"
-	REQUIRED
-)
-find_library(SVN_FS_LIBRARY NAMES svn_fs-1 PATH_SUFFIXES lib REQUIRED)
-find_library(SVN_REPOS_LIBRARY NAMES svn_repos-1 PATH_SUFFIXES lib REQUIRED)
-find_library(SVN_SUBR_LIBRARY NAMES svn_subr-1 PATH_SUFFIXES lib REQUIRED)
-
-add_executable(${PROJECT_NAME} src/main.cpp src/config.cpp)
-
-target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
-
-target_include_directories(
-	${PROJECT_NAME}
-	PRIVATE ${SVN_INCLUDE_DIR} ${APR_INCLUDE_DIR}
-)
+target_compile_definitions(${PROJECT_NAME} PRIVATE TOML_ENABLE_FORMATTERS=0 TOML_EXCEPTIONS=0)
 
 target_link_libraries(
 	${PROJECT_NAME}
-	fmt::fmt
-	argparse::argparse
-	tomlplusplus::tomlplusplus
-	re2::re2
-	date::date
-	date-tz
-	${APR_LIBRARY}
-	${SVN_FS_LIBRARY}
-	${SVN_REPOS_LIBRARY}
-	${SVN_SUBR_LIBRARY}
-)
-
-target_compile_definitions(
-	${PROJECT_NAME}
-	PRIVATE TOML_ENABLE_FORMATTERS=0 TOML_EXCEPTIONS=0
+	PRIVATE fmt::fmt
+			argparse::argparse
+			tomlplusplus::tomlplusplus
+			re2::re2
+			date::date
+			date-tz
+			APR::APR
+			Subversion::fs
+			Subversion::repos
+			Subversion::subr
 )
