@@ -3,7 +3,7 @@ include(FetchContent)
 FetchContent_Declare(
 	fmt
 	GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-	GIT_TAG 11.1.4
+	GIT_TAG 11.2.0
 )
 FetchContent_MakeAvailable(fmt)
 
@@ -24,14 +24,14 @@ FetchContent_MakeAvailable(tomlplusplus)
 FetchContent_Declare(
 	re2
 	GIT_REPOSITORY https://github.com/google/re2.git
-	GIT_TAG 2024-07-02
+	GIT_TAG 2025-08-05
 )
 FetchContent_MakeAvailable(re2)
 
 FetchContent_Declare(
 	date
 	GIT_REPOSITORY https://github.com/HowardHinnant/date.git
-	GIT_TAG v3.0.3
+	GIT_TAG v3.0.4
 )
 set(BUILD_TZ_LIB
 	ON
