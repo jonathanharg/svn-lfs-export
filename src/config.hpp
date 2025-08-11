@@ -11,13 +11,10 @@
 
 struct Rule
 {
-	using RepoBranch = struct
-	{
-		std::string repo;
-		std::string branch;
-	};
+	bool skipRevision;
 	std::unique_ptr<RE2> svnPath;
-	std::optional<RepoBranch> repoBranch;
+	std::string repo;
+	std::string branch;
 	std::string gitPath;
 	std::optional<long int> minRev;
 	std::optional<long int> maxRev;

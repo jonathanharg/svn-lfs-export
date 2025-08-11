@@ -118,18 +118,18 @@ std::optional<OutputLocation> MapPathToOutput(const Config& config, const long i
 		capturesStrings.emplace(capturesStrings.begin(), wholeCaptureBegin,
 					wholeCaptureEnd);
 
-		if (!rule.repoBranch)
+		if (rule.skipRevision)
 		{
 			break;
 		}
 
 		OutputLocation result;
 
-		rule.svnPath->Rewrite(&result.repo, rule.repoBranch->repo, capturesStrings.data(),
+		rule.svnPath->Rewrite(&result.repo, rule.repo, capturesStrings.data(),
 				      captureGroupsWith0th);
 
-		rule.svnPath->Rewrite(&result.branch, rule.repoBranch->branch,
-				      capturesStrings.data(), captureGroupsWith0th);
+		rule.svnPath->Rewrite(&result.branch, rule.branch, capturesStrings.data(),
+				      captureGroupsWith0th);
 
 		rule.svnPath->Rewrite(&result.path, rule.gitPath, capturesStrings.data(),
 				      captureGroupsWith0th);

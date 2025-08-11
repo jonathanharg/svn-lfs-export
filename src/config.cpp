@@ -112,16 +112,13 @@ std::expected<Config, std::string> Config::Parse(const toml::table& root)
 				*svnPath));
 		}
 
-		std::optional<Rule::RepoBranch> repoBranch = {};
-		if (repository && branch)
-		{
-			repoBranch = Rule::RepoBranch{*repository, *branch};
-		}
+		const bool ignore = !repository.has_value() || !branch.has_value();
 
 		const auto minRev = table["min_revision"].value<long int>();
 		const auto maxRev = table["max_revision"].value<long int>();
 
-		result.rules.emplace_back(std::make_unique<RE2>(*svnPath), repoBranch, gitPath,
+		result.rules.emplace_back(ignore, std::make_unique<RE2>(*svnPath),
+					  repository.value_or(""), branch.value_or(""), gitPath,
 					  minRev, maxRev);
 	}
 
@@ -214,21 +211,25 @@ std::expected<void, std::string> Config::IsValid() const
 							   rule.svnPath->error()));
 		}
 
+		if (rule.repo.empty() != rule.branch.empty())
+		{
+			return std::unexpected(
+				"ERROR: Provide an output repository and branch, or neither");
+		}
+
 		std::string error;
 		static constexpr const char* errorMsg =
-			R"(ERROR: Could not rewrite "{}" with the regex "{}" - {})";
+			"ERROR: Could not rewrite {:?} with the regex {:?} - {}";
 
-		if (rule.repoBranch &&
-		    !rule.svnPath->CheckRewriteString(rule.repoBranch->repo, &error))
+		if (!rule.skipRevision && !rule.svnPath->CheckRewriteString(rule.repo, &error))
 		{
-			return std::unexpected(fmt::format(errorMsg, rule.repoBranch->repo,
-							   rule.svnPath->pattern(), error));
+			return std::unexpected(
+				fmt::format(errorMsg, rule.repo, rule.svnPath->pattern(), error));
 		}
-		if (rule.repoBranch &&
-		    !rule.svnPath->CheckRewriteString(rule.repoBranch->repo, &error))
+		if (!rule.skipRevision && !rule.svnPath->CheckRewriteString(rule.repo, &error))
 		{
-			return std::unexpected(fmt::format(errorMsg, rule.repoBranch->repo,
-							   rule.svnPath->pattern(), error));
+			return std::unexpected(
+				fmt::format(errorMsg, rule.repo, rule.svnPath->pattern(), error));
 		}
 		if (!rule.svnPath->CheckRewriteString(rule.gitPath, &error))
 		{
