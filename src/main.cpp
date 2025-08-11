@@ -220,8 +220,8 @@ int main()
 	const Config& config = maybeConfig.value();
 
 	apr_initialize();
-	SVNPool root;
-	SVNPool scratch;
+	svn::Pool root;
+	svn::Pool scratch;
 	svn_repos_t* repository = nullptr;
 	svn_error_t* err = nullptr;
 
@@ -268,7 +268,7 @@ int main()
 	for (long int rev = startRev; rev <= stopRev; rev++)
 	{
 		LogInfo("Converting r{}", rev);
-		SVNPool revPool;
+		svn::Pool revPool;
 
 		svn_fs_root_t* revFs = nullptr;
 		err = svn_fs_revision_root(&revFs, fs, rev, revPool);
