@@ -3,7 +3,6 @@
 #include "utils.hpp"
 #include <apr_general.h>
 #include <apr_hash.h>
-#include <apr_pools.h>
 #include <argparse/argparse.hpp>
 #include <chrono>
 #include <cstdlib>
@@ -20,9 +19,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
-#include <svn_pools.h>
-#include <svn_props.h>
-#include <svn_repos.h>
+#include <svn_string.h>
 #include <vector>
 
 constexpr std::array<std::string_view, 5> kPathChangeStrings = {
@@ -151,20 +148,20 @@ std::optional<OutputLocation> MapPathToOutput(const Config& config, const long i
 	return std::nullopt;
 }
 
-std::string GetGitAuthor(const Config& config, const std::optional<std::string>& username)
+std::string GetGitAuthor(const Config& config, const std::string& username)
 {
 	const std::string& domain = config.overrideDomain.value_or("localhost");
 
-	if (!username.has_value())
+	if (username.empty())
 	{
 		return fmt::format("Unknown User <unknown@{}>", domain);
 	}
-	if (config.identityMap.contains(*username))
+	if (config.identityMap.contains(username))
 	{
-		return config.identityMap.at(*username);
+		return config.identityMap.at(username);
 	}
 
-	return fmt::format("{} <{}@{}>", *username, *username, domain);
+	return fmt::format("{} <{}@{}>", username, username, domain);
 }
 
 std::string GetCommitMessage(const Config& config, const std::string& log,
@@ -220,24 +217,9 @@ int main()
 	const Config& config = maybeConfig.value();
 
 	apr_initialize();
-	svn::Pool root;
-	svn::Pool scratch;
-	svn_repos_t* repository = nullptr;
-	svn_error_t* err = nullptr;
+	svn::Repository repository = svn::Repository(config.svnRepo);
 
-	err = svn_repos_open3(&repository, config.svnRepo.c_str(), nullptr, root, scratch);
-	SVN_INT_ERR(err);
-
-	svn_fs_t* fs = svn_repos_fs(repository);
-	if (!fs)
-	{
-		std::cerr << "ERROR: SVN failed to open fs.";
-		return EXIT_FAILURE;
-	}
-
-	long int youngestRev = 1;
-	err = svn_fs_youngest_rev(&youngestRev, fs, scratch);
-	SVN_INT_ERR(err);
+	long int youngestRev = repository.GetYoungestRevision();
 
 	long int startRev = config.minRevision.value_or(1);
 	long int stopRev = config.maxRevision.value_or(youngestRev);
@@ -265,105 +247,43 @@ int main()
 	//  - Branch creation, working out "from" commit
 	//  - Merging?
 
-	for (long int rev = startRev; rev <= stopRev; rev++)
+	for (long int revNum = startRev; revNum <= stopRev; revNum++)
 	{
-		LogInfo("Converting r{}", rev);
-		svn::Pool revPool;
+		LogInfo("Converting r{}", revNum);
+		svn::Revision rev = repository.GetRevision(revNum);
 
-		svn_fs_root_t* revFs = nullptr;
-		err = svn_fs_revision_root(&revFs, fs, rev, revPool);
-		SVN_INT_ERR(err);
+		std::string committer = GetGitAuthor(config, rev.GetAuthor());
+		std::string message =
+			GetCommitMessage(config, rev.GetLog(), rev.GetAuthor(), revNum);
+		std::string time = GetGitTime(config, rev.GetDate());
 
-		apr_hash_t* revProps = nullptr;
-		err = svn_fs_revision_proplist2(&revProps, fs, rev, false, revPool, scratch);
-		SVN_INT_ERR(err);
-
-		static constexpr const char* epoch = "1970-01-01T00:00:00Z";
-
-		auto authorProp = GetProp(revProps, SVN_PROP_REVISION_AUTHOR);
-		auto logProp = GetProp(revProps, SVN_PROP_REVISION_LOG).value_or("");
-		auto dateProp = GetProp(revProps, SVN_PROP_REVISION_DATE).value_or(epoch);
-
-		std::string gitAuthor = GetGitAuthor(config, authorProp);
-		std::string gitMessage =
-			GetCommitMessage(config, logProp, authorProp.value_or("unknown"), rev);
-		std::string gitTime = GetGitTime(config, dateProp);
-
-		svn_fs_path_change_iterator_t* it = nullptr;
-		err = svn_fs_paths_changed3(&it, revFs, revPool, scratch);
-		SVN_INT_ERR(err);
-
-		svn_fs_path_change3_t* changes = nullptr;
-		err = svn_fs_path_change_get(&changes, it);
-		SVN_INT_ERR(err);
-
-		// TODO: Make the commit after first gathering files
 		std::string ref = "refs/heads/main";
 		Output("commit {}", ref);
-		Output("committer {} {}", gitAuthor, gitTime);
-		Output("data {}\n{}", gitMessage.length(), gitMessage);
+		Output("committer {} {}", committer, time);
+		Output("data {}\n{}", message.length(), message);
 
-		while (changes)
+		for (const auto& file : rev.GetFiles())
 		{
-			std::string path{changes->path.data, changes->path.len};
-			std::string_view changeKind = kPathChangeStrings.at(changes->change_kind);
-			std::string_view nodeKind = kNodeKindStrings.at(changes->node_kind);
-
-			bool textMod = changes->text_mod;
-			bool propMod = changes->prop_mod;
-
-			// TODO: Get Copy from and mergeinfo
-			// => Copy from might help performance / eliminate unnecessary duplication
-			// => merge info might help us create branches
-
 			std::optional<OutputLocation> destination =
-				MapPathToOutput(config, rev, path);
-
-			LogError("SVN {} {}: {:?} (mod text {}, props {})", changeKind, nodeKind,
-				 path, textMod, propMod);
+				MapPathToOutput(config, revNum, file.path);
 
 			if (destination)
 			{
-				LogError("-> {}/{} {} (LFS {})", destination->repo,
+				LogError("{} -> {}/{} {} (LFS {})", file.path, destination->repo,
 					 destination->branch, destination->path, destination->lfs);
 			}
 
 			// TODO: are we sure we can skip over directories here?
-			if (changes->node_kind != svn_node_kind_t::svn_node_file)
+			if (file.isDirectory)
 			{
-				err = svn_fs_path_change_get(&changes, it);
-				SVN_INT_ERR(err);
 				continue;
 			}
 
-			svn_stream_t* content = nullptr;
-			// TODO: Should probably free these pools early?
-			// or have a file level pool
-			err = svn_fs_file_contents(&content, revFs, path.c_str(), revPool);
-			SVN_INT_ERR(err);
-
-			svn_filesize_t fileSize = 0;
-			// TODO: I'm not sure if we want/need to be doing this
-			err = svn_fs_file_length(&fileSize, revFs, path.c_str(), revPool);
-			SVN_INT_ERR(err);
-
-			std::vector<char> buffer(fileSize);
-
-			// WARNING: This will probably overflow
-			apr_size_t readSize = fileSize;
-			err = svn_stream_read_full(content, buffer.data(), &readSize);
-			SVN_INT_ERR(err);
-
-			std::string_view file{buffer.data(), static_cast<size_t>(fileSize)};
+			std::string_view buff{file.buffer.get(), file.size};
 
 			Output("M {} inline {}", static_cast<int>(GitMode::Normal),
-			       destination->path.c_str());
-			Output("data {}\n{}", file.length(), file);
-
-			err = svn_fs_path_change_get(&changes, it);
-			SVN_INT_ERR(err);
+			       destination->path);
+			Output("data {}\n{}", file.size, buff);
 		}
-
-		scratch.clear();
 	}
 }
