@@ -9,15 +9,23 @@
 #include <unordered_map>
 #include <vector>
 
+/// A rule to map SVN revisions to git commits. The rules to apply to all files in all commits.
 struct Rule
 {
+	/// Ignore this revision, implies gitRepo and gitBranch are empty.
 	bool skipRevision;
+	/// Regular expression to match input SVN path
 	std::unique_ptr<RE2> svnPath;
-	std::string repo;
-	std::string branch;
-	std::string gitPath;
-	std::optional<long int> minRev;
-	std::optional<long int> maxRev;
+	/// Output git repository
+	std::string gitRepository;
+	/// Output git branch
+	std::string gitBranch;
+	/// Output git file location. Can be empty. To be used as a prefix for files.
+	std::string gitFilePath;
+	/// Minimum revision the rule applies to.
+	std::optional<long int> minRevision;
+	/// Maximum revision the rule applies to.
+	std::optional<long int> maxRevision;
 };
 
 struct Config
@@ -27,8 +35,8 @@ struct Config
 
 	bool createBaseCommit = false;
 	bool strictMode = false;
-	std::optional<long int> minRev;
-	std::optional<long int> maxRev;
+	std::optional<long int> minRevision;
+	std::optional<long int> maxRevision;
 	std::string svnRepo;
 	std::optional<std::string> overrideDomain;
 	std::string timezone;

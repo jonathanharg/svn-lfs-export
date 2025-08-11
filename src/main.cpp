@@ -82,11 +82,11 @@ std::optional<OutputLocation> MapPathToOutput(const Config& config, const long i
 		// 8. Check if GIT PATH full matches with a rule in LFS RULES
 		// 9. Output GIT REPO, GIT BRANCH, a GIT PATH, and if LFS
 
-		if (rule.minRev && *rule.minRev > rev)
+		if (rule.minRevision && *rule.minRevision > rev)
 		{
 			continue;
 		}
-		if (rule.maxRev && *rule.maxRev < rev)
+		if (rule.maxRevision && *rule.maxRevision < rev)
 		{
 			continue;
 		}
@@ -125,13 +125,13 @@ std::optional<OutputLocation> MapPathToOutput(const Config& config, const long i
 
 		OutputLocation result;
 
-		rule.svnPath->Rewrite(&result.repo, rule.repo, capturesStrings.data(),
+		rule.svnPath->Rewrite(&result.repo, rule.gitRepository, capturesStrings.data(),
 				      captureGroupsWith0th);
 
-		rule.svnPath->Rewrite(&result.branch, rule.branch, capturesStrings.data(),
+		rule.svnPath->Rewrite(&result.branch, rule.gitBranch, capturesStrings.data(),
 				      captureGroupsWith0th);
 
-		rule.svnPath->Rewrite(&result.path, rule.gitPath, capturesStrings.data(),
+		rule.svnPath->Rewrite(&result.path, rule.gitFilePath, capturesStrings.data(),
 				      captureGroupsWith0th);
 
 		// Append any of the non-captured SVN path to the output git path
@@ -239,8 +239,8 @@ int main()
 	err = svn_fs_youngest_rev(&youngestRev, fs, scratch);
 	SVN_INT_ERR(err);
 
-	long int startRev = config.minRev.value_or(1);
-	long int stopRev = config.maxRev.value_or(youngestRev);
+	long int startRev = config.minRevision.value_or(1);
+	long int stopRev = config.maxRevision.value_or(youngestRev);
 
 	LogInfo("Running from r{} to r{}", startRev, stopRev);
 

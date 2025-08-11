@@ -27,8 +27,8 @@ std::expected<Config, std::string> Config::Parse(const toml::table& root)
 	Config result;
 
 	// Optional or default values
-	result.minRev = root["min_revision"].value<long int>();
-	result.maxRev = root["max_revision"].value<long int>();
+	result.minRevision = root["min_revision"].value<long int>();
+	result.maxRevision = root["max_revision"].value<long int>();
 	result.overrideDomain = root["domain"].value<std::string>();
 	result.createBaseCommit = root["create_base_commit"].value_or(kDefaultCreateBaseCommit);
 	result.strictMode = root["strict_mode"].value_or(kDefaultStrictMode);
@@ -211,7 +211,7 @@ std::expected<void, std::string> Config::IsValid() const
 							   rule.svnPath->error()));
 		}
 
-		if (rule.repo.empty() != rule.branch.empty())
+		if (rule.gitRepository.empty() != rule.gitBranch.empty())
 		{
 			return std::unexpected(
 				"ERROR: Provide an output repository and branch, or neither");
@@ -221,19 +221,21 @@ std::expected<void, std::string> Config::IsValid() const
 		static constexpr const char* errorMsg =
 			"ERROR: Could not rewrite {:?} with the regex {:?} - {}";
 
-		if (!rule.skipRevision && !rule.svnPath->CheckRewriteString(rule.repo, &error))
+		if (!rule.skipRevision &&
+		    !rule.svnPath->CheckRewriteString(rule.gitRepository, &error))
 		{
-			return std::unexpected(
-				fmt::format(errorMsg, rule.repo, rule.svnPath->pattern(), error));
+			return std::unexpected(fmt::format(errorMsg, rule.gitRepository,
+							   rule.svnPath->pattern(), error));
 		}
-		if (!rule.skipRevision && !rule.svnPath->CheckRewriteString(rule.repo, &error))
+		if (!rule.skipRevision &&
+		    !rule.svnPath->CheckRewriteString(rule.gitRepository, &error))
 		{
-			return std::unexpected(
-				fmt::format(errorMsg, rule.repo, rule.svnPath->pattern(), error));
+			return std::unexpected(fmt::format(errorMsg, rule.gitRepository,
+							   rule.svnPath->pattern(), error));
 		}
-		if (!rule.svnPath->CheckRewriteString(rule.gitPath, &error))
+		if (!rule.svnPath->CheckRewriteString(rule.gitFilePath, &error))
 		{
-			return std::unexpected(fmt::format(errorMsg, rule.gitPath,
+			return std::unexpected(fmt::format(errorMsg, rule.gitFilePath,
 							   rule.svnPath->pattern(), error));
 		}
 	}
