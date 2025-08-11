@@ -57,8 +57,7 @@ std::optional<std::string> GetProp(apr_hash_t* hash, const char* prop)
 	return {};
 };
 
-std::optional<OutputLocation> MapPathToOutput(const Config& config, const long int rev,
-					      const std::string_view& path)
+std::optional<OutputLocation> MapPathToOutput(const Config& config, const long int rev, const std::string_view& path)
 {
 	const std::vector<Rule>& rules = config.rules;
 
@@ -112,8 +111,7 @@ std::optional<OutputLocation> MapPathToOutput(const Config& config, const long i
 
 		auto wholeCaptureBegin = path.begin();
 		auto wholeCaptureEnd = consumedPtr.begin();
-		capturesStrings.emplace(capturesStrings.begin(), wholeCaptureBegin,
-					wholeCaptureEnd);
+		capturesStrings.emplace(capturesStrings.begin(), wholeCaptureBegin, wholeCaptureEnd);
 
 		if (rule.skipRevision)
 		{
@@ -122,14 +120,11 @@ std::optional<OutputLocation> MapPathToOutput(const Config& config, const long i
 
 		OutputLocation result;
 
-		rule.svnPath->Rewrite(&result.repo, rule.gitRepository, capturesStrings.data(),
-				      captureGroupsWith0th);
+		rule.svnPath->Rewrite(&result.repo, rule.gitRepository, capturesStrings.data(), captureGroupsWith0th);
 
-		rule.svnPath->Rewrite(&result.branch, rule.gitBranch, capturesStrings.data(),
-				      captureGroupsWith0th);
+		rule.svnPath->Rewrite(&result.branch, rule.gitBranch, capturesStrings.data(), captureGroupsWith0th);
 
-		rule.svnPath->Rewrite(&result.path, rule.gitFilePath, capturesStrings.data(),
-				      captureGroupsWith0th);
+		rule.svnPath->Rewrite(&result.path, rule.gitFilePath, capturesStrings.data(), captureGroupsWith0th);
 
 		// Append any of the non-captured SVN path to the output git path
 		result.path.append(consumedPtr);
@@ -164,11 +159,10 @@ std::string GetGitAuthor(const Config& config, const std::string& username)
 	return fmt::format("{} <{}@{}>", username, username, domain);
 }
 
-std::string GetCommitMessage(const Config& config, const std::string& log,
-			     const std::string& username, long int rev)
+std::string GetCommitMessage(const Config& config, const std::string& log, const std::string& username, long int rev)
 {
-	return fmt::format(fmt::runtime(config.commitMessage), fmt::arg("log", log),
-			   fmt::arg("usr", username), fmt::arg("rev", rev));
+	return fmt::format(fmt::runtime(config.commitMessage), fmt::arg("log", log), fmt::arg("usr", username),
+					   fmt::arg("rev", rev));
 }
 
 std::string GetGitTime(const Config& config, const std::string& svnTime)
@@ -197,9 +191,7 @@ std::string GetGitTime(const Config& config, const std::string& svnTime)
 	date::zoned_time<std::chrono::milliseconds> zonedTime{tz, utcTime};
 	std::string formattedOffset = date::format("%z", zonedTime);
 
-	auto unixEpoch =
-		std::chrono::duration_cast<std::chrono::seconds>(utcTime.time_since_epoch())
-			.count();
+	auto unixEpoch = std::chrono::duration_cast<std::chrono::seconds>(utcTime.time_since_epoch()).count();
 	return fmt::format("{} {}", unixEpoch, formattedOffset);
 }
 
@@ -253,8 +245,7 @@ int main()
 		svn::Revision rev = repository.GetRevision(revNum);
 
 		std::string committer = GetGitAuthor(config, rev.GetAuthor());
-		std::string message =
-			GetCommitMessage(config, rev.GetLog(), rev.GetAuthor(), revNum);
+		std::string message = GetCommitMessage(config, rev.GetLog(), rev.GetAuthor(), revNum);
 		std::string time = GetGitTime(config, rev.GetDate());
 
 		std::string ref = "refs/heads/main";
@@ -264,13 +255,12 @@ int main()
 
 		for (const auto& file : rev.GetFiles())
 		{
-			std::optional<OutputLocation> destination =
-				MapPathToOutput(config, revNum, file.path);
+			std::optional<OutputLocation> destination = MapPathToOutput(config, revNum, file.path);
 
 			if (destination)
 			{
-				LogError("{} -> {}/{} {} (LFS {})", file.path, destination->repo,
-					 destination->branch, destination->path, destination->lfs);
+				LogError("{} -> {}/{} {} (LFS {})", file.path, destination->repo, destination->branch,
+						 destination->path, destination->lfs);
 			}
 
 			// TODO: are we sure we can skip over directories here?
@@ -281,8 +271,7 @@ int main()
 
 			std::string_view buff{file.buffer.get(), file.size};
 
-			Output("M {} inline {}", static_cast<int>(GitMode::Normal),
-			       destination->path);
+			Output("M {} inline {}", static_cast<int>(GitMode::Normal), destination->path);
 			Output("data {}\n{}", file.size, buff);
 		}
 	}

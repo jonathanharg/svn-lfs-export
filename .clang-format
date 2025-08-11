@@ -1,10 +1,10 @@
-ColumnLimit: 100
-ConstructorInitializerIndentWidth: 8
-ContinuationIndentWidth: 8
-IndentWidth: 8
-TabWidth: 8
+ColumnLimit: 120
+ConstructorInitializerIndentWidth: 4
+ContinuationIndentWidth: 4
+IndentWidth: 4
+TabWidth: 4
 UseTab: Always
-AccessModifierOffset: -8
+AccessModifierOffset: -4
 SortIncludes: true
 SortUsingDeclarations: false
 BreakBeforeBraces: Allman
@@ -12,3 +12,4 @@ IndentAccessModifiers: false
 AllowShortFunctionsOnASingleLine: Inline
 PointerAlignment: Left
 BreakTemplateDeclarations: Yes
+BreakStringLiterals: false
