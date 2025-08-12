@@ -22,14 +22,6 @@
 #include <svn_string.h>
 #include <vector>
 
-constexpr std::array<std::string_view, 5> kPathChangeStrings = {
-	"Modified", "Add", "Delete", "Replace", "Reset" /* Unused */
-};
-
-constexpr std::array<std::string_view, 5> kNodeKindStrings = {
-	"None", "File", "Directory", "Unknown", "Symlink" /* Unused */
-};
-
 enum class GitMode
 {
 	Normal = 100644,
@@ -88,13 +80,15 @@ std::optional<OutputLocation> MapPathToOutput(const Config& config, const long i
 		}
 
 		int capturesGroups = rule.svnPath->NumberOfCapturingGroups();
+		// Regex must be valid so the capture group number is always >= 0
+		auto containerSize = static_cast<size_t>(capturesGroups);
 
-		std::vector<std::string_view> capturesStrings(capturesGroups);
+		std::vector<std::string_view> capturesStrings(containerSize);
 
-		std::vector<RE2::Arg> args(capturesGroups);
-		std::vector<RE2::Arg*> argPtrs(capturesGroups);
+		std::vector<RE2::Arg> args(containerSize);
+		std::vector<RE2::Arg*> argPtrs(containerSize);
 
-		for (int i = 0; i < capturesGroups; ++i)
+		for (size_t i = 0; i < containerSize; ++i)
 		{
 			args[i] = RE2::Arg(&capturesStrings[i]);
 			argPtrs[i] = &args[i];
