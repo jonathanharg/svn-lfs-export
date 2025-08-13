@@ -1,5 +1,6 @@
 #pragma once
 #include "config.hpp"
+#include "svn.hpp"
 #include <string>
 
 namespace git
@@ -31,4 +32,5 @@ std::string GetGitTime(const Config& config, const std::string& svnTime);
 
 std::optional<OutputLocation> MapPathToOutput(const Config& config, const long int rev, const std::string_view& path);
 
+std::expected<void, std::string> WriteGitCommit(const Config& config, const svn::Revision& rev);
 } // namespace git

@@ -1,5 +1,7 @@
 #include "git.hpp"
 #include "config.hpp"
+#include "svn.hpp"
+#include "utils.hpp"
 #include <chrono>
 #include <date/date.h>
 #include <date/tz.h>
@@ -148,6 +150,85 @@ std::optional<OutputLocation> MapPathToOutput(const Config& config, const long i
 		return result;
 	}
 	return std::nullopt;
+}
+
+std::expected<void, std::string> WriteGitCommit(const Config& config, const svn::Revision& rev)
+{
+	// 1. For each revision, get revision properties
+	//     - Author
+	//     - Date
+	//     - Log message
+	// 2. Gather all changes in a revision, grouping by output repo & branch
+	//    storing metadata and a lazy file stream.
+	//     - Output path -> output repo, branch, path & LFS
+	//     - Change type added/removed/modified
+	//     - Copy from?
+	//     - Merge info?
+	//     - File size
+	//     - File data stream
+	// 3. For each repo & branch, commit files.
+
+	// THINK ABOUT
+	//  - Failure / cancelling mid process
+	//  - Saving marks
+	//  - Continuing from where you left off
+	//  - Branch creation, working out "from" commit
+	//  - Merging?
+
+	std::string committer = git::GetGitAuthor(config, rev.GetAuthor());
+	std::string message = git::GetCommitMessage(config, rev.GetLog(), rev.GetAuthor(), rev.GetNumber());
+	std::string time = git::GetGitTime(config, rev.GetDate());
+
+	std::string ref = "refs/heads/main";
+	Output("commit {}", ref);
+	Output("committer {} {}", committer, time);
+	Output("data {}\n{}", message.length(), message);
+
+	for (const auto& file : rev.GetFiles())
+	{
+		std::optional<git::OutputLocation> destination = git::MapPathToOutput(config, rev.GetNumber(), file.path);
+
+		if (!destination)
+		{
+			if (config.strictMode)
+			{
+				return std::unexpected(fmt::format(
+					"ERROR: The path {:?} for r{} does not map to a git location. Stopping progress because strict_mode is enabled",
+					file.path, rev.GetNumber()));
+			}
+			else
+			{
+				continue;
+			}
+		}
+
+		if (destination->skip)
+		{
+			continue;
+		}
+
+		LogError("{} -> {}/{} {} (LFS {})", file.path, destination->repo, destination->branch, destination->path,
+				 destination->lfs);
+
+		// TODO: are we sure we can skip over directories here?
+		if (file.isDirectory)
+		{
+			continue;
+		}
+
+		if (file.changeType == svn::File::Change::Delete)
+		{
+			Output("D {}", destination->path);
+		}
+		else
+		{
+			std::string_view buff{file.buffer.get(), file.size};
+
+			Output("M {} inline {}", static_cast<int>(git::Mode::Normal), destination->path);
+			Output("data {}\n{}", file.size, buff);
+		}
+	}
+	return {};
 }
 
 } // namespace git
