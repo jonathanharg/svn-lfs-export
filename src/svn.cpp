@@ -62,6 +62,7 @@ void Revision::SetupFiles()
 
 	while (changes)
 	{
+		svn::Pool filePool;
 		std::string path{changes->path.data, changes->path.len};
 
 		assert(changes->node_kind == svn_node_file || changes->node_kind == svn_node_dir);
@@ -78,26 +79,30 @@ void Revision::SetupFiles()
 		// changes->copyfrom_known;
 		// changes->mergeinfo_mod;
 
-		svn_filesize_t signedFileSize = 0;
-		err = svn_fs_file_length(&signedFileSize, mRevisionFs, path.c_str(), mPool);
-		assert(!err);
-
-		// NOTE: This will overflow for files > 4GB on 32bit systems, don't care
-		auto fileSize = static_cast<size_t>(signedFileSize);
-
 		std::unique_ptr<char[]> buffer;
+		size_t fileSize = 0;
 
-		if (fileSize > 0)
+		if (!isDirectory && changeType != File::Change::Delete)
 		{
-			svn_stream_t* content = nullptr;
-			err = svn_fs_file_contents(&content, mRevisionFs, path.c_str(), mPool);
+			svn_filesize_t signedFileSize = 0;
+			err = svn_fs_file_length(&signedFileSize, mRevisionFs, path.c_str(), filePool);
 			assert(!err);
 
-			buffer = std::make_unique<char[]>(fileSize);
+			// NOTE: This will overflow for files > 4GB on 32bit systems, don't care
+			fileSize = static_cast<size_t>(signedFileSize);
 
-			size_t readSize = fileSize;
-			err = svn_stream_read_full(content, buffer.get(), &readSize);
-			assert(!err);
+			if (fileSize > 0)
+			{
+				svn_stream_t* content = nullptr;
+				err = svn_fs_file_contents(&content, mRevisionFs, path.c_str(), filePool);
+				assert(!err);
+
+				buffer = std::make_unique<char[]>(fileSize);
+
+				size_t readSize = fileSize;
+				err = svn_stream_read_full(content, buffer.get(), &readSize);
+				assert(!err);
+			}
 		}
 
 		mFiles.emplace_back(std::move(path), isDirectory, changeType, fileSize, std::move(buffer));
