@@ -74,7 +74,7 @@ void Revision::SetupFiles()
 		auto changeType = static_cast<File::Change>(changes->change_kind);
 
 		std::optional<File::CopyFrom> copyfrom;
-		if (changes->copyfrom_known)
+		if (changes->copyfrom_known && changes->copyfrom_path)
 		{
 			copyfrom = {.path = changes->copyfrom_path, .rev = changes->copyfrom_rev};
 		}
