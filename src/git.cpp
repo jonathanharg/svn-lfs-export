@@ -79,9 +79,7 @@ std::optional<OutputLocation> MapPathToOutput(const Config& config, const long i
 		// 4. Rewrite GIT REPO with substitutions from SVN PATH match
 		// 5. Rewrite BRANCH with substitutions from SVN PATH match
 		// 6. Rewrite GIT PATH with substitutions from SVN PATH match
-		// 7. Append GIT PATH with the non-captured suffix being careful of
-		//    duplicate path separators (e.g. //)
-		//    [NOTE. This is now a user skill issue]
+		// 7. Append GIT PATH with the non-captured suffix
 		// 8. Check if GIT PATH full matches with a rule in LFS RULES
 		// 9. Output GIT REPO, GIT BRANCH, a GIT PATH, and if LFS
 
