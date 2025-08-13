@@ -18,7 +18,6 @@
 #include <string_view>
 #include <vector>
 
-
 int main()
 {
 	argparse::ArgumentParser program("svn-lfs-export");
@@ -93,10 +92,17 @@ int main()
 				continue;
 			}
 
-			std::string_view buff{file.buffer.get(), file.size};
+			if (file.changeType == svn::File::Change::Delete)
+			{
+				Output("D {}", destination->path);
+			}
+			else
+			{
+				std::string_view buff{file.buffer.get(), file.size};
 
-			Output("M {} inline {}", static_cast<int>(git::Mode::Normal), destination->path);
-			Output("data {}\n{}", file.size, buff);
+				Output("M {} inline {}", static_cast<int>(git::Mode::Normal), destination->path);
+				Output("data {}\n{}", file.size, buff);
+			}
 		}
 	}
 }
