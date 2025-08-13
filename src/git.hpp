@@ -16,6 +16,7 @@ enum class Mode
 
 struct OutputLocation
 {
+	bool skip = false;
 	std::string repo;
 	std::string branch;
 	std::string path;

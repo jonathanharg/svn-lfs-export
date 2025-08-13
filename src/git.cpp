@@ -122,7 +122,7 @@ std::optional<OutputLocation> MapPathToOutput(const Config& config, const long i
 
 		if (rule.skipRevision)
 		{
-			break;
+			return OutputLocation(true);
 		}
 
 		OutputLocation result;

@@ -13,10 +13,8 @@
 #include <memory>
 #include <optional>
 #include <re2/re2.h>
-#include <sstream>
 #include <string>
 #include <string_view>
-#include <vector>
 
 int main()
 {
@@ -80,11 +78,28 @@ int main()
 		{
 			std::optional<git::OutputLocation> destination = git::MapPathToOutput(config, revNum, file.path);
 
-			if (destination)
+			if (!destination)
 			{
-				LogError("{} -> {}/{} {} (LFS {})", file.path, destination->repo, destination->branch,
-						 destination->path, destination->lfs);
+				if (config.strictMode)
+				{
+					LogError(
+						"ERROR: The path {:?} for r{} does not map to a git location. Stopping progress because strict_mode is enabled",
+						file.path, revNum);
+					return EXIT_FAILURE;
+				}
+				else
+				{
+					continue;
+				}
 			}
+
+			if (destination->skip)
+			{
+				continue;
+			}
+
+			LogError("{} -> {}/{} {} (LFS {})", file.path, destination->repo, destination->branch, destination->path,
+					 destination->lfs);
 
 			// TODO: are we sure we can skip over directories here?
 			if (file.isDirectory)
