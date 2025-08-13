@@ -73,11 +73,11 @@ void Revision::SetupFiles()
 
 		auto changeType = static_cast<File::Change>(changes->change_kind);
 
-		// Don't care for now
-		// changes->text_mod;
-		// changes->prop_mod;
-		// changes->copyfrom_known;
-		// changes->mergeinfo_mod;
+		std::optional<File::CopyFrom> copyfrom;
+		if (changes->copyfrom_known)
+		{
+			copyfrom = {.path = changes->copyfrom_path, .rev = changes->copyfrom_rev};
+		}
 
 		std::unique_ptr<char[]> buffer;
 		size_t fileSize = 0;
@@ -105,7 +105,7 @@ void Revision::SetupFiles()
 			}
 		}
 
-		mFiles.emplace_back(std::move(path), isDirectory, changeType, fileSize, std::move(buffer));
+		mFiles.emplace_back(std::move(path), isDirectory, changeType, fileSize, std::move(buffer), copyfrom);
 
 		err = svn_fs_path_change_get(&changes, it);
 		assert(!err);

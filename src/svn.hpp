@@ -38,12 +38,19 @@ struct File
 		Add = svn_fs_path_change_add,
 		Delete = svn_fs_path_change_delete
 	};
+
+	struct CopyFrom
+	{
+		std::string path;
+		long int rev;
+	};
+
 	std::string path;
 	bool isDirectory;
 	Change changeType;
-
 	size_t size;
 	std::unique_ptr<char[]> buffer;
+	std::optional<CopyFrom> copiedFrom;
 };
 
 class Revision
