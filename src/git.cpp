@@ -11,8 +11,23 @@
 #include <fmt/std.h>
 #include <string>
 
-namespace git
+enum class Mode
 {
+	Normal = 100644,
+	Executable = 100755,
+	Symlink = 120000,
+	GitLink = 160000,
+	Subdirectory = 040000,
+};
+
+struct Mapping
+{
+	bool skip = false;
+	std::string repo;
+	std::string branch;
+	std::string path;
+	bool lfs = false;
+};
 
 std::string GetGitAuthor(const Config& config, const std::string& username)
 {
@@ -66,7 +81,7 @@ std::string GetGitTime(const Config& config, const std::string& svnTime)
 	return fmt::format("{} {}", unixEpoch, formattedOffset);
 }
 
-std::optional<OutputLocation> MapPathToOutput(const Config& config, const long int rev, const std::string_view& path)
+std::optional<Mapping> MapPath(const Config& config, const long int rev, const std::string_view& path)
 {
 	const std::vector<Rule>& rules = config.rules;
 
@@ -124,10 +139,10 @@ std::optional<OutputLocation> MapPathToOutput(const Config& config, const long i
 
 		if (rule.skipRevision)
 		{
-			return OutputLocation(true);
+			return Mapping(true);
 		}
 
-		OutputLocation result;
+		Mapping result;
 
 		rule.svnPath->Rewrite(&result.repo, rule.gitRepository, capturesStrings.data(), captureGroupsWith0th);
 
@@ -175,9 +190,9 @@ std::expected<void, std::string> WriteGitCommit(const Config& config, const svn:
 	//  - Branch creation, working out "from" commit
 	//  - Merging?
 
-	std::string committer = git::GetGitAuthor(config, rev.GetAuthor());
-	std::string message = git::GetCommitMessage(config, rev.GetLog(), rev.GetAuthor(), rev.GetNumber());
-	std::string time = git::GetGitTime(config, rev.GetDate());
+	std::string committer = GetGitAuthor(config, rev.GetAuthor());
+	std::string message = GetCommitMessage(config, rev.GetLog(), rev.GetAuthor(), rev.GetNumber());
+	std::string time = GetGitTime(config, rev.GetDate());
 
 	std::string ref = "refs/heads/main";
 	Output("commit {}", ref);
@@ -186,7 +201,7 @@ std::expected<void, std::string> WriteGitCommit(const Config& config, const svn:
 
 	for (const auto& file : rev.GetFiles())
 	{
-		std::optional<git::OutputLocation> destination = git::MapPathToOutput(config, rev.GetNumber(), file.path);
+		std::optional<Mapping> destination = MapPath(config, rev.GetNumber(), file.path);
 
 		if (!destination)
 		{
@@ -224,11 +239,9 @@ std::expected<void, std::string> WriteGitCommit(const Config& config, const svn:
 		{
 			std::string_view buff{file.buffer.get(), file.size};
 
-			Output("M {} inline {}", static_cast<int>(git::Mode::Normal), destination->path);
+			Output("M {} inline {}", static_cast<int>(Mode::Normal), destination->path);
 			Output("data {}\n{}", file.size, buff);
 		}
 	}
 	return {};
 }
-
-} // namespace git

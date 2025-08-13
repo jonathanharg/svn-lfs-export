@@ -43,7 +43,7 @@ int main()
 	{
 		LogInfo("Converting r{}", revNum);
 		svn::Revision rev = repository.GetRevision(revNum);
-		auto result = git::WriteGitCommit(config, rev);
+		auto result = WriteGitCommit(config, rev);
 
 		if (!result.has_value())
 		{
