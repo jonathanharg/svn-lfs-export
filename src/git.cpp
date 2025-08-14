@@ -45,10 +45,11 @@ std::string GetGitAuthor(const Config& config, const std::string& username)
 	return fmt::format("{} <{}@{}>", username, username, domain);
 }
 
-std::string GetCommitMessage(const Config& config, const std::string& log, const std::string& username, long int rev)
+std::string GetCommitMessage(const Config& config, const std::string& log,
+							 const std::string& username, long int rev)
 {
-	return fmt::format(fmt::runtime(config.commitMessage), fmt::arg("log", log), fmt::arg("usr", username),
-					   fmt::arg("rev", rev));
+	return fmt::format(fmt::runtime(config.commitMessage), fmt::arg("log", log),
+					   fmt::arg("usr", username), fmt::arg("rev", rev));
 }
 
 std::string GetGitTime(const Config& config, const std::string& svnTime)
@@ -77,11 +78,13 @@ std::string GetGitTime(const Config& config, const std::string& svnTime)
 	date::zoned_time<std::chrono::milliseconds> zonedTime{tz, utcTime};
 	std::string formattedOffset = date::format("%z", zonedTime);
 
-	auto unixEpoch = std::chrono::duration_cast<std::chrono::seconds>(utcTime.time_since_epoch()).count();
+	auto unixEpoch =
+		std::chrono::duration_cast<std::chrono::seconds>(utcTime.time_since_epoch()).count();
 	return fmt::format("{} {}", unixEpoch, formattedOffset);
 }
 
-std::optional<Mapping> MapPath(const Config& config, const long int rev, const std::string_view& path)
+std::optional<Mapping> MapPath(const Config& config, const long int rev,
+							   const std::string_view& path)
 {
 	const std::vector<Rule>& rules = config.rules;
 
@@ -144,11 +147,14 @@ std::optional<Mapping> MapPath(const Config& config, const long int rev, const s
 
 		Mapping result;
 
-		rule.svnPath->Rewrite(&result.repo, rule.gitRepository, capturesStrings.data(), captureGroupsWith0th);
+		rule.svnPath->Rewrite(&result.repo, rule.gitRepository, capturesStrings.data(),
+							  captureGroupsWith0th);
 
-		rule.svnPath->Rewrite(&result.branch, rule.gitBranch, capturesStrings.data(), captureGroupsWith0th);
+		rule.svnPath->Rewrite(&result.branch, rule.gitBranch, capturesStrings.data(),
+							  captureGroupsWith0th);
 
-		rule.svnPath->Rewrite(&result.path, rule.gitFilePath, capturesStrings.data(), captureGroupsWith0th);
+		rule.svnPath->Rewrite(&result.path, rule.gitFilePath, capturesStrings.data(),
+							  captureGroupsWith0th);
 
 		// Append any of the non-captured SVN path to the output git path
 		result.path.append(consumedPtr);
@@ -222,8 +228,8 @@ std::expected<void, std::string> WriteGitCommit(const Config& config, const svn:
 			continue;
 		}
 
-		LogError("{} -> {}/{} {} (LFS {})", file.path, destination->repo, destination->branch, destination->path,
-				 destination->lfs);
+		LogError("{} -> {}/{} {} (LFS {})", file.path, destination->repo, destination->branch,
+				 destination->path, destination->lfs);
 
 		// TODO: are we sure we can skip over directories here?
 		if (file.isDirectory)

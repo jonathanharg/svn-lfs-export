@@ -38,7 +38,8 @@ void Revision::SetupProperties()
 
 	apr_hash_t* revProps = nullptr;
 	[[maybe_unused]]
-	svn_error_t* err = svn_fs_revision_proplist2(&revProps, mRepositoryFs, mRevision, false, resultPool, scratchPool);
+	svn_error_t* err = svn_fs_revision_proplist2(&revProps, mRepositoryFs, mRevision, false,
+												 resultPool, scratchPool);
 	assert(!err);
 
 	static constexpr const char* kEpoch = "1970-01-01T00:00:00Z";
@@ -102,7 +103,8 @@ void Revision::SetupFiles()
 			}
 		}
 
-		mFiles.emplace_back(std::move(path), isDirectory, changeType, fileSize, std::move(buffer), copyfrom);
+		mFiles.emplace_back(std::move(path), isDirectory, changeType, fileSize, std::move(buffer),
+							copyfrom);
 
 		err = svn_fs_path_change_get(&changes, it);
 		assert(!err);
