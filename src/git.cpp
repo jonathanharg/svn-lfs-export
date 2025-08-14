@@ -200,10 +200,12 @@ std::expected<void, std::string> WriteGitCommit(const Config& config, const svn:
 	std::string message = GetCommitMessage(config, rev.GetLog(), rev.GetAuthor(), rev.GetNumber());
 	std::string time = GetGitTime(config, rev.GetDate());
 
-	std::string ref = "refs/heads/main";
-	Output("commit {}", ref);
-	Output("committer {} {}", committer, time);
-	Output("data {}\n{}", message.length(), message);
+	std::unordered_map<const svn::File*, Mapping> fileMappings;
+
+	using Repo = std::string;
+	using Branch = std::string;
+	using FileList = std::vector<const svn::File*>;
+	std::unordered_map<Repo, std::unordered_map<Branch, FileList>> repoBranchMappings;
 
 	for (const auto& file : rev.GetFiles())
 	{
@@ -227,27 +229,46 @@ std::expected<void, std::string> WriteGitCommit(const Config& config, const svn:
 		{
 			continue;
 		}
+		fileMappings[&file] = *destination;
+		repoBranchMappings[destination->repo][destination->branch].push_back(&file);
+	}
 
-		LogError("{} -> {}/{} {} (LFS {})", file.path, destination->repo, destination->branch,
-				 destination->path, destination->lfs);
-
-		// TODO: are we sure we can skip over directories here?
-		if (file.isDirectory)
+	// FIXME: For loop followed by triple nested for loop feels like a bad way to do this.
+	for (const auto& [repo, branchMap] : repoBranchMappings)
+	{
+		for (const auto& [branch, fileList] : branchMap)
 		{
-			continue;
-		}
+			std::string ref = fmt::format("refs/heads/{}", branch);
+			Output("commit {}", ref);
+			Output("committer {} {}", committer, time);
+			Output("data {}\n{}", message.length(), message);
 
-		if (file.changeType == svn::File::Change::Delete)
-		{
-			Output("D {}", destination->path);
-		}
-		else
-		{
-			std::string_view buff{file.buffer.get(), file.size};
+			for (const auto* file : fileList)
+			{
+				auto destination = fileMappings[file];
+				LogError("{} -> {}/{} {} (LFS {})", file->path, destination.repo,
+						 destination.branch, destination.path, destination.lfs);
 
-			Output("M {} inline {}", static_cast<int>(Mode::Normal), destination->path);
-			Output("data {}\n{}", file.size, buff);
+				// TODO: are we sure we can skip over directories here?
+				if (file->isDirectory)
+				{
+					continue;
+				}
+
+				if (file->changeType == svn::File::Change::Delete)
+				{
+					Output("D {}", destination.path);
+				}
+				else
+				{
+					std::string_view buff{file->buffer.get(), file->size};
+
+					Output("M {} inline {}", static_cast<int>(Mode::Normal), destination.path);
+					Output("data {}\n{}", file->size, buff);
+				}
+			}
 		}
 	}
+
 	return {};
 }

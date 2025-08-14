@@ -42,6 +42,7 @@ int main()
 	for (long int revNum = startRev; revNum <= stopRev; revNum++)
 	{
 		LogInfo("Converting r{}", revNum);
+		LogError("Converting r{}", revNum);
 		svn::Revision rev = repository.GetRevision(revNum);
 		auto result = WriteGitCommit(config, rev);
 
