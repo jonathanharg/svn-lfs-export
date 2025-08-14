@@ -68,9 +68,6 @@ void Revision::SetupFiles()
 		assert(changes->node_kind == svn_node_file || changes->node_kind == svn_node_dir);
 		bool isDirectory = changes->node_kind == svn_node_dir;
 
-		assert(changes->change_kind == svn_fs_path_change_modify || changes->change_kind == svn_fs_path_change_add ||
-			   changes->change_kind == svn_fs_path_change_delete);
-
 		auto changeType = static_cast<File::Change>(changes->change_kind);
 
 		std::optional<File::CopyFrom> copyfrom;
