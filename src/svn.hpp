@@ -64,15 +64,10 @@ public:
 
 private:
 	Revision(svn_fs_t* repositoryFs, long int revision);
-	void SetupProperties();
-	void SetupFiles();
+	void SetupProperties(svn_fs_t* repositoryFs);
+	void SetupFiles(svn_fs_root_t* revisionFs);
 
 	long int mRevision;
-	Pool mPool;
-	// The lifetime of this is a bit worrying, it's dependent on the lifetime of the parent
-	// Repository. TODO: This should probably be some kind of shared pointer
-	svn_fs_t* mRepositoryFs;
-	svn_fs_root_t* mRevisionFs;
 	std::string mAuthor;
 	std::string mLog;
 	std::string mDate;

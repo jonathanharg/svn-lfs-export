@@ -11,14 +11,17 @@ namespace svn
 {
 
 Revision::Revision(svn_fs_t* repositoryFs, long int revision)
-	: mRevision(revision), mRepositoryFs(repositoryFs), mRevisionFs(nullptr)
+	: mRevision(revision)
 {
+	Pool rootPool;
+	svn_fs_root_t* revisionFs = nullptr;
+
 	[[maybe_unused]]
-	svn_error_t* err = svn_fs_revision_root(&mRevisionFs, mRepositoryFs, mRevision, mPool);
+	svn_error_t* err = svn_fs_revision_root(&revisionFs, repositoryFs, mRevision, rootPool);
 	assert(!err);
 
-	SetupProperties();
-	SetupFiles();
+	SetupProperties(repositoryFs);
+	SetupFiles(revisionFs);
 }
 
 std::optional<std::string> GetRevisionProp(apr_hash_t* hash, const char* prop)
@@ -31,14 +34,14 @@ std::optional<std::string> GetRevisionProp(apr_hash_t* hash, const char* prop)
 	return {};
 }
 
-void Revision::SetupProperties()
+void Revision::SetupProperties(svn_fs_t* repositoryFs)
 {
 	Pool resultPool;
 	Pool scratchPool;
 
 	apr_hash_t* revProps = nullptr;
 	[[maybe_unused]]
-	svn_error_t* err = svn_fs_revision_proplist2(&revProps, mRepositoryFs, mRevision, false,
+	svn_error_t* err = svn_fs_revision_proplist2(&revProps, repositoryFs, mRevision, false,
 												 resultPool, scratchPool);
 	assert(!err);
 
@@ -48,13 +51,14 @@ void Revision::SetupProperties()
 	mDate = GetRevisionProp(revProps, SVN_PROP_REVISION_DATE).value_or(kEpoch);
 }
 
-void Revision::SetupFiles()
+void Revision::SetupFiles(svn_fs_root_t* revisionFs)
 {
-	svn::Pool scratchPool;
+	Pool pathsPool;
+	Pool scratchPool;
 	[[maybe_unused]] svn_error_t* err = nullptr;
 
 	svn_fs_path_change_iterator_t* it = nullptr;
-	err = svn_fs_paths_changed3(&it, mRevisionFs, mPool, scratchPool);
+	err = svn_fs_paths_changed3(&it, revisionFs, pathsPool, scratchPool);
 	assert(!err);
 
 	svn_fs_path_change3_t* changes = nullptr;
@@ -83,7 +87,7 @@ void Revision::SetupFiles()
 		if (!isDirectory && changeType != File::Change::Delete)
 		{
 			svn_filesize_t signedFileSize = 0;
-			err = svn_fs_file_length(&signedFileSize, mRevisionFs, path.c_str(), filePool);
+			err = svn_fs_file_length(&signedFileSize, revisionFs, path.c_str(), filePool);
 			assert(!err);
 
 			// NOTE: This will overflow for files > 4GB on 32bit systems, don't care
@@ -92,7 +96,7 @@ void Revision::SetupFiles()
 			if (fileSize > 0)
 			{
 				svn_stream_t* content = nullptr;
-				err = svn_fs_file_contents(&content, mRevisionFs, path.c_str(), filePool);
+				err = svn_fs_file_contents(&content, revisionFs, path.c_str(), filePool);
 				assert(!err);
 
 				buffer = std::make_unique<char[]>(fileSize);
