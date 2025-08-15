@@ -13,3 +13,5 @@ AllowShortFunctionsOnASingleLine: Inline
 PointerAlignment: Left
 BreakTemplateDeclarations: Yes
 BreakStringLiterals: false
+PackConstructorInitializers: Never
+BreakConstructorInitializers: AfterColon
