@@ -240,15 +240,13 @@ std::expected<void, std::string> WriteGitCommit(const Config& config, const svn:
 		{
 			std::string ref = fmt::format("refs/heads/{}", branch);
 			Output("commit {}", ref);
+			Output("original-oid r{}", rev.GetNumber());
 			Output("committer {} {}", committer, time);
 			Output("data {}\n{}", message.length(), message);
 
 			for (const auto* file : fileList)
 			{
 				auto destination = fileMappings[file];
-				LogError("{} -> {}/{} {} (LFS {})", file->path, destination.repo,
-						 destination.branch, destination.path, destination.lfs);
-
 
 				if (file->changeType == svn::File::Change::Delete)
 				{
