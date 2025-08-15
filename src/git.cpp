@@ -249,17 +249,12 @@ std::expected<void, std::string> WriteGitCommit(const Config& config, const svn:
 				LogError("{} -> {}/{} {} (LFS {})", file->path, destination.repo,
 						 destination.branch, destination.path, destination.lfs);
 
-				// TODO: are we sure we can skip over directories here?
-				if (file->isDirectory)
-				{
-					continue;
-				}
 
 				if (file->changeType == svn::File::Change::Delete)
 				{
 					Output("D {}", destination.path);
 				}
-				else
+				else if (!file->isDirectory)
 				{
 					std::string_view buff{file->buffer.get(), file->size};
 
