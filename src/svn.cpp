@@ -10,8 +10,52 @@
 namespace svn
 {
 
-Revision::Revision(svn_fs_t* repositoryFs, long int revision)
-	: mRevision(revision)
+File::File(svn_fs_path_change3_t* change, svn_fs_root_t* revisionFs) :
+	path(change->path.data, change->path.len),
+	isDirectory(change->node_kind == svn_node_dir),
+	changeType(static_cast<File::Change>(change->change_kind))
+{
+	// TODO: Read all properties and notify on anything important that may get lost
+	// svn_fs_node_proplist
+
+	assert(change->node_kind == svn_node_file || change->node_kind == svn_node_dir);
+
+	// The SVN API lies! copyfrom_known does not always imply copyfrom_path and copyfrom_rev are
+	// valid!!!
+	if (change->copyfrom_known && change->copyfrom_path && change->copyfrom_rev != -1)
+	{
+		copiedFrom = {.path = change->copyfrom_path, .rev = change->copyfrom_rev};
+	}
+
+	if (!isDirectory && changeType != File::Change::Delete)
+	{
+		[[maybe_unused]] svn_error_t* err = nullptr;
+		svn::Pool filePool;
+
+		svn_filesize_t signedFileSize = 0;
+		err = svn_fs_file_length(&signedFileSize, revisionFs, path.c_str(), filePool);
+		assert(!err);
+
+		// NOTE: This will overflow for files > 4GB on 32bit systems, don't care
+		size = static_cast<size_t>(signedFileSize);
+
+		if (size > 0)
+		{
+			svn_stream_t* content = nullptr;
+			err = svn_fs_file_contents(&content, revisionFs, path.c_str(), filePool);
+			assert(!err);
+
+			buffer = std::make_unique<char[]>(size);
+
+			size_t readSize = size;
+			err = svn_stream_read_full(content, buffer.get(), &readSize);
+			assert(!err);
+		}
+	}
+}
+
+Revision::Revision(svn_fs_t* repositoryFs, long int revision) :
+	mRevision(revision)
 {
 	Pool rootPool;
 	svn_fs_root_t* revisionFs = nullptr;
@@ -49,6 +93,8 @@ void Revision::SetupProperties(svn_fs_t* repositoryFs)
 	mAuthor = GetRevisionProp(revProps, SVN_PROP_REVISION_AUTHOR).value_or("");
 	mLog = GetRevisionProp(revProps, SVN_PROP_REVISION_LOG).value_or("");
 	mDate = GetRevisionProp(revProps, SVN_PROP_REVISION_DATE).value_or(kEpoch);
+	// TODO: Read all properties and notify on anything important that may get lost
+	// apr_hash_first / apr_hash_next
 }
 
 void Revision::SetupFiles(svn_fs_root_t* revisionFs)
@@ -67,48 +113,7 @@ void Revision::SetupFiles(svn_fs_root_t* revisionFs)
 
 	while (changes)
 	{
-		svn::Pool filePool;
-		std::string path{changes->path.data, changes->path.len};
-
-		assert(changes->node_kind == svn_node_file || changes->node_kind == svn_node_dir);
-		bool isDirectory = changes->node_kind == svn_node_dir;
-
-		auto changeType = static_cast<File::Change>(changes->change_kind);
-
-		std::optional<File::CopyFrom> copyfrom;
-		if (changes->copyfrom_known && changes->copyfrom_path)
-		{
-			copyfrom = {.path = changes->copyfrom_path, .rev = changes->copyfrom_rev};
-		}
-
-		std::unique_ptr<char[]> buffer;
-		size_t fileSize = 0;
-
-		if (!isDirectory && changeType != File::Change::Delete)
-		{
-			svn_filesize_t signedFileSize = 0;
-			err = svn_fs_file_length(&signedFileSize, revisionFs, path.c_str(), filePool);
-			assert(!err);
-
-			// NOTE: This will overflow for files > 4GB on 32bit systems, don't care
-			fileSize = static_cast<size_t>(signedFileSize);
-
-			if (fileSize > 0)
-			{
-				svn_stream_t* content = nullptr;
-				err = svn_fs_file_contents(&content, revisionFs, path.c_str(), filePool);
-				assert(!err);
-
-				buffer = std::make_unique<char[]>(fileSize);
-
-				size_t readSize = fileSize;
-				err = svn_stream_read_full(content, buffer.get(), &readSize);
-				assert(!err);
-			}
-		}
-
-		mFiles.emplace_back(std::move(path), isDirectory, changeType, fileSize, std::move(buffer),
-							copyfrom);
+		mFiles.emplace_back(changes, revisionFs);
 
 		err = svn_fs_path_change_get(&changes, it);
 		assert(!err);
