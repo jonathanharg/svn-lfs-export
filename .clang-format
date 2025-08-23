@@ -15,3 +15,11 @@ BreakTemplateDeclarations: Yes
 BreakStringLiterals: false
 PackConstructorInitializers: Never
 BreakConstructorInitializers: AfterColon
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '^".*'
+    Priority: 0
+  - Regex: '^<(fmt|re2|argparse|apr_|svn_|date|toml\+\+).*'
+    Priority: 1
+  - Regex: '^<.*'
+    Priority: 2

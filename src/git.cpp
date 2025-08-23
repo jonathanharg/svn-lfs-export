@@ -1,15 +1,28 @@
-#include "git.hpp"
 #include "config.hpp"
+#include "git.hpp"
 #include "svn.hpp"
 #include "utils.hpp"
-#include <chrono>
+
 #include <date/date.h>
 #include <date/tz.h>
 #include <fmt/base.h>
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 #include <fmt/std.h>
+#include <re2/re2.h>
+
+#include <algorithm>
+#include <chrono>
+#include <cstddef>
+#include <expected>
+#include <ios>
+#include <optional>
+#include <sstream>
 #include <string>
+#include <string_view>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 enum class Mode
 {

@@ -2,17 +2,18 @@
 #include "git.hpp"
 #include "svn.hpp"
 #include "utils.hpp"
+
 #include <apr_general.h>
 #include <argparse/argparse.hpp>
-#include <cstdlib>
 #include <fmt/base.h>
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 #include <fmt/std.h>
-#include <iostream>
-#include <memory>
-#include <optional>
 #include <re2/re2.h>
+
+#include <cstdlib>
+#include <iostream>
+#include <optional>
 #include <string>
 #include <string_view>
 

@@ -1,10 +1,23 @@
 #include "svn.hpp"
-#include <cassert>
+
+#include <apr_hash.h>
 #include <fmt/base.h>
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 #include <fmt/std.h>
+#include <svn_fs.h>
+#include <svn_io.h>
 #include <svn_props.h>
+#include <svn_repos.h>
+#include <svn_string.h>
+#include <svn_types.h>
+#include <svn_types_impl.h>
+
+#include <cassert>
+#include <cstddef>
+#include <memory>
+#include <optional>
+#include <string>
 #include <vector>
 
 namespace svn

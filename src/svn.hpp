@@ -1,11 +1,15 @@
 #pragma once
 #include <apr_pools.h>
-#include <optional>
-#include <span>
-#include <string>
 #include <svn_fs.h>
 #include <svn_pools.h>
 #include <svn_repos.h>
+
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string>
 #include <vector>
 
 namespace svn
@@ -16,7 +20,10 @@ class Pool
 	apr_pool_t* ptr = nullptr;
 
 public:
-	Pool() : ptr(svn_pool_create(nullptr)) {}
+	Pool() :
+		ptr(svn_pool_create(nullptr))
+	{
+	}
 	~Pool() { svn_pool_destroy(ptr); }
 
 	Pool(const Pool&) = delete;

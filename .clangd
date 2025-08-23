@@ -3,6 +3,7 @@ InlayHints:
     DeducedTypes: No
 Diagnostics:
     UnusedIncludes: Strict
+    MissingIncludes: Strict
     ClangTidy:
         Add:
             [

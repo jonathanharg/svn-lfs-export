@@ -1,5 +1,6 @@
 #include <fmt/base.h>
 #include <fmt/ostream.h>
+
 #include <iostream>
 
 template <typename... T>

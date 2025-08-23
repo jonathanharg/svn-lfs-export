@@ -1,12 +1,19 @@
 #include "config.hpp"
 #include "utils.hpp"
+
 #include <date/tz.h>
-#include <expected>
-#include <filesystem>
 #include <fmt/base.h>
+#include <fmt/format.h>
 #include <fmt/ostream.h>
 #include <re2/re2.h>
 #include <toml++/toml.hpp>
+
+#include <exception>
+#include <expected>
+#include <filesystem>
+#include <memory>
+#include <string>
+#include <string_view>
 
 std::expected<Config, std::string> Config::FromFile(const std::string_view& path)
 {
