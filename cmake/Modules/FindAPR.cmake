@@ -13,13 +13,13 @@ find_path(
 	APR_INCLUDE_DIR
 	NAMES apr.h
 	HINTS ${_apr_root_hint} ENV APRPATH
-	PATH_SUFFIXES include include/apr-1
+	PATH_SUFFIXES include include/apr-1 include/apr-1.0
 	DOC "APR include directory"
 )
 
 find_library(
 	APR_LIBRARY
-	NAMES apr-1
+	NAMES apr-1 apr-1.0
 	HINTS ${_apr_root_hint} ENV APRPATH
 	PATH_SUFFIXES lib
 	DOC "APR library"
