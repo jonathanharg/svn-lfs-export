@@ -24,7 +24,7 @@ int main()
 
 	if (!maybeConfig)
 	{
-		std::cerr << maybeConfig.error();
+		std::cerr << maybeConfig.error() << '\n';
 		return EXIT_FAILURE;
 	}
 
@@ -47,7 +47,7 @@ int main()
 
 		if (!result.has_value())
 		{
-			std::cerr << result.error();
+			std::cerr << result.error() << '\n';
 			return EXIT_FAILURE;
 		}
 	}
