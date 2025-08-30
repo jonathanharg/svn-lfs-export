@@ -1,10 +1,6 @@
 #include "svn.hpp"
 
 #include <apr_hash.h>
-#include <fmt/base.h>
-#include <fmt/format.h>
-#include <fmt/ostream.h>
-#include <fmt/std.h>
 #include <svn_fs.h>
 #include <svn_io.h>
 #include <svn_props.h>
@@ -18,7 +14,6 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <vector>
 
 namespace svn
 {

@@ -7,11 +7,8 @@
 #include <date/tz.h>
 #include <fmt/base.h>
 #include <fmt/format.h>
-#include <fmt/ostream.h>
-#include <fmt/std.h>
 #include <re2/re2.h>
 
-#include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <expected>
@@ -21,7 +18,6 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 enum class Mode
