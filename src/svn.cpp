@@ -42,7 +42,7 @@ File::File(svn_fs_path_change3_t* change, svn_fs_root_t* revisionFs) :
 
 	if (!isDirectory && changeType != File::Change::Delete)
 	{
-		[[maybe_unused]] svn_error_t* err = nullptr;
+		[[maybe_unused]] const svn_error_t* err = nullptr;
 		svn::Pool filePool;
 
 		svn_filesize_t signedFileSize = 0;
@@ -74,7 +74,7 @@ Revision::Revision(svn_fs_t* repositoryFs, long int revision) :
 	svn_fs_root_t* revisionFs = nullptr;
 
 	[[maybe_unused]]
-	svn_error_t* err = svn_fs_revision_root(&revisionFs, repositoryFs, mRevision, rootPool);
+	const svn_error_t* err = svn_fs_revision_root(&revisionFs, repositoryFs, mRevision, rootPool);
 	assert(!err);
 
 	SetupProperties(repositoryFs);
@@ -98,8 +98,8 @@ void Revision::SetupProperties(svn_fs_t* repositoryFs)
 
 	apr_hash_t* revProps = nullptr;
 	[[maybe_unused]]
-	svn_error_t* err = svn_fs_revision_proplist2(&revProps, repositoryFs, mRevision, false,
-												 resultPool, scratchPool);
+	const svn_error_t* err = svn_fs_revision_proplist2(&revProps, repositoryFs, mRevision, false,
+													   resultPool, scratchPool);
 	assert(!err);
 
 	static constexpr const char* kEpoch = "1970-01-01T00:00:00Z";
@@ -114,7 +114,7 @@ void Revision::SetupFiles(svn_fs_root_t* revisionFs)
 {
 	Pool pathsPool;
 	Pool scratchPool;
-	[[maybe_unused]] svn_error_t* err = nullptr;
+	[[maybe_unused]] const svn_error_t* err = nullptr;
 
 	svn_fs_path_change_iterator_t* it = nullptr;
 	err = svn_fs_paths_changed3(&it, revisionFs, pathsPool, scratchPool);
@@ -138,7 +138,7 @@ Repository::Repository(const std::string& path)
 	Pool scratchPool;
 
 	[[maybe_unused]]
-	svn_error_t* err = svn_repos_open3(&mRepos, path.c_str(), nullptr, mPool, scratchPool);
+	const svn_error_t* err = svn_repos_open3(&mRepos, path.c_str(), nullptr, mPool, scratchPool);
 	mFs = svn_repos_fs(mRepos);
 
 	assert(mFs);
@@ -150,7 +150,7 @@ long int Repository::GetYoungestRevision()
 	long int youngestRev = 1;
 
 	[[maybe_unused]]
-	svn_error_t* err = svn_fs_youngest_rev(&youngestRev, mFs, scratchPool);
+	const svn_error_t* err = svn_fs_youngest_rev(&youngestRev, mFs, scratchPool);
 	assert(!err);
 
 	return youngestRev;

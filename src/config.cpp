@@ -1,10 +1,8 @@
 #include "config.hpp"
-#include "utils.hpp"
 
 #include <date/tz.h>
 #include <fmt/base.h>
 #include <fmt/format.h>
-#include <fmt/ostream.h>
 #include <re2/re2.h>
 #include <toml++/toml.hpp>
 

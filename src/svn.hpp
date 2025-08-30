@@ -52,7 +52,7 @@ struct File
 		long int rev;
 	};
 
-	explicit File(svn_fs_path_change3_t* changes, svn_fs_root_t* revisionFs);
+	explicit File(svn_fs_path_change3_t* change, svn_fs_root_t* revisionFs);
 
 	std::string path;
 	bool isDirectory;
@@ -88,7 +88,7 @@ private:
 class Repository
 {
 public:
-	Repository(const std::string& path);
+	explicit Repository(const std::string& path);
 	long int GetYoungestRevision();
 	Revision GetRevision(long int revision);
 
