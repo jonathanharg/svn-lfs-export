@@ -60,30 +60,54 @@ include(cmake/dependencies.cmake)
 find_package(APR REQUIRED)
 find_package(Subversion REQUIRED)
 
+add_executable(${PROJECT_NAME} "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")
+
 file(
 	GLOB_RECURSE
-	sources
+	lib_sources
 	CONFIGURE_DEPENDS
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
 )
-add_executable(${PROJECT_NAME} ${sources})
+list(REMOVE_ITEM lib_sources "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")
+add_library(${PROJECT_NAME}_lib ${lib_sources})
 
 include(cmake/warnings.cmake)
 include(cmake/cppcheck.cmake)
 include(cmake/sanitizers.cmake)
 
-target_compile_definitions(${PROJECT_NAME} PRIVATE TOML_ENABLE_FORMATTERS=0 TOML_EXCEPTIONS=0)
+add_library(dependencies INTERFACE)
+target_compile_definitions(dependencies INTERFACE TOML_ENABLE_FORMATTERS=0 TOML_EXCEPTIONS=0)
 
 target_link_libraries(
-	${PROJECT_NAME}
-	PRIVATE fmt::fmt
-			argparse::argparse
-			tomlplusplus::tomlplusplus
-			re2::re2
-			date::date
-			date-tz
-			APR::APR
-			Subversion::fs
-			Subversion::repos
-			Subversion::subr
+	dependencies
+	INTERFACE fmt::fmt
+			  argparse::argparse
+			  tomlplusplus::tomlplusplus
+			  re2::re2
+			  date::date
+			  date-tz
+			  APR::APR
+			  Subversion::fs
+			  Subversion::repos
+			  Subversion::subr
 )
+
+target_link_libraries(${PROJECT_NAME}_lib PRIVATE dependencies)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}_lib dependencies)
+
+if(BUILD_TESTING)
+	file(
+		GLOB_RECURSE
+		test_sources
+		CONFIGURE_DEPENDS
+		"${CMAKE_CURRENT_SOURCE_DIR}/test/*.cpp"
+	)
+	add_executable(tests ${test_sources})
+	target_include_directories(tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+	target_link_libraries(tests PRIVATE ${PROJECT_NAME}_lib dependencies Catch2::Catch2WithMain)
+
+	list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
+	include(CTest)
+	include(Catch)
+	catch_discover_tests(tests)
+endif()

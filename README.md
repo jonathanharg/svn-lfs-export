@@ -11,3 +11,8 @@ Build
 ```
 cmake --build ./build
 ```
+
+Test
+```
+cmake --build build && ctest --test-dir build
+```
