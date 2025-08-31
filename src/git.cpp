@@ -34,7 +34,7 @@ enum class Mode
 
 std::string GetAuthor(const Config& config, const std::string& username)
 {
-	const std::string& domain = config.overrideDomain.value_or("localhost");
+	const std::string& domain = config.domain.value_or("localhost");
 
 	if (username.empty())
 	{

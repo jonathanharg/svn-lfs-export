@@ -34,7 +34,7 @@ std::expected<Config, std::string> Config::Parse(const toml::table& root)
 	// Optional or default values
 	result.minRevision = root["min_revision"].value<long int>();
 	result.maxRevision = root["max_revision"].value<long int>();
-	result.overrideDomain = root["domain"].value<std::string>();
+	result.domain = root["domain"].value<std::string>();
 	result.createBaseCommit = root["create_base_commit"].value_or(kDefaultCreateBaseCommit);
 	result.strictMode = root["strict_mode"].value_or(kDefaultStrictMode);
 	result.timezone = root["time_zone"].value_or(kDefaultTimeZone);
@@ -163,7 +163,7 @@ std::expected<void, std::string> Config::IsValid() const
 		}
 	}
 
-	if (identityMap.size() == 0 && !overrideDomain)
+	if (identityMap.size() == 0 && !domain)
 	{
 		return std::unexpected("ERROR: Please provide an identity map or a domain.");
 	}
@@ -183,7 +183,7 @@ std::expected<void, std::string> Config::IsValid() const
 		return std::unexpected(fmt::format("ERROR: Timezone {:?} is not valid.", timezone));
 	}
 
-	if (!overrideDomain)
+	if (!domain)
 	{
 		return std::unexpected(
 			"WARNING: No domain provided. Any SVN users not present in the identity map will cause the program to terminate with an error.");

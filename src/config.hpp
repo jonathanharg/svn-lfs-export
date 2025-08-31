@@ -39,7 +39,7 @@ struct Config
 	std::optional<long int> minRevision;
 	std::optional<long int> maxRevision;
 	std::string svnRepo;
-	std::optional<std::string> overrideDomain;
+	std::optional<std::string> domain;
 	std::string timezone;
 	std::string commitMessage;
 	std::vector<Rule> rules;
