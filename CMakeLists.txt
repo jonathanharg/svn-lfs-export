@@ -37,7 +37,24 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 	)
 endif()
 
+option(ENABLE_LTO "Enable LTO" OFF)
 option(ENABLE_WARNINGS_AS_ERRORS "Treat Warnings As Errors" OFF)
+option(ENABLE_ASAN "Enable address sanitizer" OFF)
+option(ENABLE_LSAN "Enable leak sanitizer" OFF)
+option(ENABLE_UBSAN "Enable undefined sanitizer" OFF)
+option(ENABLE_TSAN "Enable thread sanitizer" OFF)
+option(ENABLE_MSAN "Enable memory sanitizer" OFF)
+option(ENABLE_CPPCHECK "Enable cpp-check analysis" OFF)
+
+if(ENABLE_LTO)
+	include(CheckIPOSupported)
+	check_ipo_supported(RESULT lto_supported OUTPUT lto_error)
+	if(lto_supported)
+		set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
+	else()
+		message(SEND_ERROR "IPO is not supported: ${lto_error}")
+	endif()
+endif()
 
 include(cmake/dependencies.cmake)
 find_package(APR REQUIRED)
@@ -52,6 +69,8 @@ file(
 add_executable(${PROJECT_NAME} ${sources})
 
 include(cmake/warnings.cmake)
+include(cmake/cppcheck.cmake)
+include(cmake/sanitizers.cmake)
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE TOML_ENABLE_FORMATTERS=0 TOML_EXCEPTIONS=0)
 
