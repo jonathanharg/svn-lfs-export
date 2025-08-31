@@ -35,7 +35,7 @@ int main()
 	for (long int revNum = startRev; revNum <= stopRev; revNum++)
 	{
 		svn::Revision rev = repository.GetRevision(revNum);
-		auto result = WriteGitCommit(config, rev);
+		auto result = git::WriteCommit(config, rev);
 
 		if (!result.has_value())
 		{

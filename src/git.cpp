@@ -20,6 +20,9 @@
 #include <unordered_map>
 #include <vector>
 
+namespace git
+{
+
 enum class Mode
 {
 	Normal = 100644,
@@ -29,16 +32,7 @@ enum class Mode
 	Subdirectory = 040000,
 };
 
-struct Mapping
-{
-	bool skip = false;
-	std::string repo;
-	std::string branch;
-	std::string path;
-	bool lfs = false;
-};
-
-std::string GetGitAuthor(const Config& config, const std::string& username)
+std::string GetAuthor(const Config& config, const std::string& username)
 {
 	const std::string& domain = config.overrideDomain.value_or("localhost");
 
@@ -61,7 +55,7 @@ std::string GetCommitMessage(const Config& config, const std::string& log,
 					   fmt::arg("usr", username), fmt::arg("rev", rev));
 }
 
-std::string GetGitTime(const Config& config, const std::string& svnTime)
+std::string GetTime(const Config& config, const std::string& svnTime)
 {
 	// It looks like SVN stores dates in UTC time
 	// https://svn.haxx.se/users/archive-2003-09/0322.shtml
@@ -182,7 +176,7 @@ std::optional<Mapping> MapPath(const Config& config, const long int rev,
 	return std::nullopt;
 }
 
-std::expected<void, std::string> WriteGitCommit(const Config& config, const svn::Revision& rev)
+std::expected<void, std::string> WriteCommit(const Config& config, const svn::Revision& rev)
 {
 	// 1. For each revision, get revision properties
 	//     - Author
@@ -205,9 +199,10 @@ std::expected<void, std::string> WriteGitCommit(const Config& config, const svn:
 	//  - Branch creation, working out "from" commit
 	//  - Merging?
 
-	std::string committer = GetGitAuthor(config, rev.GetAuthor());
-	std::string message = GetCommitMessage(config, rev.GetLog(), rev.GetAuthor(), rev.GetNumber());
-	std::string time = GetGitTime(config, rev.GetDate());
+	std::string committer = git::GetAuthor(config, rev.GetAuthor());
+	std::string message =
+		git::GetCommitMessage(config, rev.GetLog(), rev.GetAuthor(), rev.GetNumber());
+	std::string time = git::GetTime(config, rev.GetDate());
 
 	std::unordered_map<const svn::File*, Mapping> fileMappings;
 
@@ -274,3 +269,5 @@ std::expected<void, std::string> WriteGitCommit(const Config& config, const svn:
 
 	return {};
 }
+
+} // namespace git
