@@ -1,3 +1,5 @@
+add_library(project_sanitizers INTERFACE)
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
 	set(SANITIZERS "")
 
@@ -50,7 +52,7 @@ if(LIST_OF_SANITIZERS)
 	   STREQUAL
 	   ""
 	)
-		target_compile_options(${PROJECT_NAME} PRIVATE -fsanitize=${LIST_OF_SANITIZERS})
-		target_link_options(${PROJECT_NAME} PRIVATE -fsanitize=${LIST_OF_SANITIZERS})
+		target_compile_options(project_sanitizers INTERFACE -fsanitize=${LIST_OF_SANITIZERS})
+		target_link_options(project_sanitizers INTERFACE -fsanitize=${LIST_OF_SANITIZERS})
 	endif()
 endif()
