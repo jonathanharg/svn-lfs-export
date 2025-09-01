@@ -64,25 +64,16 @@ std::string GetTime(const Config& config, const std::string& svnTime)
 	// UTC offset based on the location of the server.
 
 	std::istringstream dateStream{svnTime};
-	std::chrono::sys_time<std::chrono::milliseconds> utcTime;
-	dateStream >> date::parse("%FT%T%Ez", utcTime);
+	std::chrono::sys_time<std::chrono::seconds> utcTime;
+	dateStream >> date::parse("%FT%T", utcTime);
 
-	// I'm 90% sure SVN stores UTC with 6 decimal places / microseconds
-	// But add a fail-safe to parse 0 decimal places / seconds
-	if (dateStream.fail())
-	{
-		dateStream.clear();
-		dateStream.exceptions(std::ios::failbit);
-		dateStream.str(svnTime);
-		dateStream >> date::parse("%FT%TZ", utcTime);
-	}
-	static const date::time_zone* tz = date::get_tzdb().locate_zone(config.timezone);
+	auto unixEpoch = utcTime.time_since_epoch().count();
 
-	date::zoned_time<std::chrono::milliseconds> zonedTime{tz, utcTime};
+	const date::time_zone* tz = date::get_tzdb().locate_zone(config.timezone);
+
+	date::zoned_time<std::chrono::seconds> zonedTime{tz, utcTime};
 	std::string formattedOffset = date::format("%z", zonedTime);
 
-	auto unixEpoch =
-		std::chrono::duration_cast<std::chrono::seconds>(utcTime.time_since_epoch()).count();
 	return fmt::format("{} {}", unixEpoch, formattedOffset);
 }
 
