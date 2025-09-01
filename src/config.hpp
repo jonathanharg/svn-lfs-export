@@ -31,11 +31,17 @@ struct Rule
 
 struct Config
 {
+	Config() :
+		createBaseCommit(kDefaultCreateBaseCommit),
+		strictMode(kDefaultStrictMode),
+		timezone(kDefaultTimeZone),
+		commitMessage(kDefaultCommitMessage) {};
+
 	static std::expected<Config, std::string> Parse(const toml::table& root);
 	static std::expected<Config, std::string> FromFile(const std::string_view&);
 
-	bool createBaseCommit = false;
-	bool strictMode = false;
+	bool createBaseCommit;
+	bool strictMode;
 	std::optional<long int> minRevision;
 	std::optional<long int> maxRevision;
 	std::string svnRepo;
