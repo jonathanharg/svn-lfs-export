@@ -93,8 +93,9 @@ void Revision::SetupProperties(svn_fs_t* repositoryFs)
 
 	apr_hash_t* revProps = nullptr;
 	[[maybe_unused]]
-	const svn_error_t* err = svn_fs_revision_proplist2(&revProps, repositoryFs, mRevision, false,
-													   resultPool, scratchPool);
+	const svn_error_t* err = svn_fs_revision_proplist2(
+		&revProps, repositoryFs, mRevision, false, resultPool, scratchPool
+	);
 	assert(!err);
 
 	static constexpr const char* kEpoch = "1970-01-01T00:00:00Z";

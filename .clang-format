@@ -3,6 +3,9 @@ ConstructorInitializerIndentWidth: 4
 ContinuationIndentWidth: 4
 IndentWidth: 4
 TabWidth: 4
+AlignAfterOpenBracket: BlockIndent
+BracedInitializerIndentWidth: 4
+PenaltyReturnTypeOnItsOwnLine: 100
 UseTab: Always
 AccessModifierOffset: -4
 SortIncludes: true

@@ -20,7 +20,8 @@ std::expected<Config, std::string> Config::FromFile(const std::string_view& path
 	if (!fileRead)
 	{
 		return std::unexpected(
-			fmt::format("ERROR: Failed to parse config.toml - {}", fileRead.error().description()));
+			fmt::format("ERROR: Failed to parse config.toml - {}", fileRead.error().description())
+		);
 	}
 
 	const toml::table& root = fileRead.table();
@@ -45,7 +46,8 @@ std::expected<Config, std::string> Config::Parse(const toml::table& root)
 	if (!repositoryValue)
 	{
 		return std::unexpected(
-			"ERROR: Failed to parse the SVN repository string. Make sure a valid path to a on-disk SVN repository is provided.");
+			"ERROR: Failed to parse the SVN repository string. Make sure a valid path to a on-disk SVN repository is provided."
+		);
 	}
 
 	result.svnRepo = *repositoryValue;
@@ -60,7 +62,8 @@ std::expected<Config, std::string> Config::Parse(const toml::table& root)
 			if (!gitIdentity)
 			{
 				return std::unexpected(
-					fmt::format("ERROR: Git identity for SVN user {:?} is invalid.", key.str()));
+					fmt::format("ERROR: Git identity for SVN user {:?} is invalid.", key.str())
+				);
 			}
 			result.identityMap[std::string(key.str())] = *gitIdentity;
 		}
@@ -87,7 +90,8 @@ std::expected<Config, std::string> Config::Parse(const toml::table& root)
 	if (!rulesConfig)
 	{
 		return std::unexpected(
-			"ERROR: Expected rules to be an array of tables defined using one or more [[rule]] statements.");
+			"ERROR: Expected rules to be an array of tables defined using one or more [[rule]] statements."
+		);
 	}
 
 	for (const toml::node& rule : *rulesConfig)
@@ -95,7 +99,8 @@ std::expected<Config, std::string> Config::Parse(const toml::table& root)
 		if (!rule.as_table())
 		{
 			return std::unexpected(
-				"ERROR: Expected rules to be an array of tables defined using one or more [[rule]] statements.");
+				"ERROR: Expected rules to be an array of tables defined using one or more [[rule]] statements."
+			);
 		}
 		const toml::table& table = *rule.as_table();
 
@@ -110,9 +115,12 @@ std::expected<Config, std::string> Config::Parse(const toml::table& root)
 		}
 		if (repository.has_value() != branch.has_value())
 		{
-			return std::unexpected(fmt::format(
-				"ERROR: For {} both a repository and a branch must be provided, or neither should be provided .",
-				*svnPath));
+			return std::unexpected(
+				fmt::format(
+					"ERROR: For {} both a repository and a branch must be provided, or neither should be provided .",
+					*svnPath
+				)
+			);
 		}
 
 		const bool ignore = !repository.has_value() || !branch.has_value();
@@ -120,8 +128,10 @@ std::expected<Config, std::string> Config::Parse(const toml::table& root)
 		const auto minRev = table["min_revision"].value<long int>();
 		const auto maxRev = table["max_revision"].value<long int>();
 
-		result.rules.emplace_back(ignore, std::make_unique<RE2>(*svnPath), repository.value_or(""),
-								  branch.value_or(""), gitPath, minRev, maxRev);
+		result.rules.emplace_back(
+			ignore, std::make_unique<RE2>(*svnPath), repository.value_or(""), branch.value_or(""),
+			gitPath, minRev, maxRev
+		);
 	}
 
 	auto valid = result.IsValid();
@@ -137,19 +147,25 @@ std::expected<void, std::string> Config::IsValid() const
 {
 	if (!std::filesystem::is_directory(svnRepo))
 	{
-		return std::unexpected(fmt::format(
-			"ERROR: Repository path {:?} is not a directory that can be found.", svnRepo));
+		return std::unexpected(
+			fmt::format(
+				"ERROR: Repository path {:?} is not a directory that can be found.", svnRepo
+			)
+		);
 	}
 
 	try
 	{
-		(void)fmt::format(fmt::runtime(commitMessage), fmt::arg("log", "log msg"),
-						  fmt::arg("usr", "sean"), fmt::arg("rev", 1));
+		(void)fmt::format(
+			fmt::runtime(commitMessage), fmt::arg("log", "log msg"), fmt::arg("usr", "sean"),
+			fmt::arg("rev", 1)
+		);
 	}
 	catch (fmt::v11::format_error& err)
 	{
 		return std::unexpected(
-			fmt::format("ERROR: Invalid commit_message template (fmtlib error {:?}).", err.what()));
+			fmt::format("ERROR: Invalid commit_message template (fmtlib error {:?}).", err.what())
+		);
 	}
 
 	static const RE2 kValidNameRe(R"(^([^\n<>]+\ )*<[^<>\n]+>$)");
@@ -157,9 +173,12 @@ std::expected<void, std::string> Config::IsValid() const
 	{
 		if (!RE2::FullMatch(value, kValidNameRe))
 		{
-			return std::unexpected(fmt::format(
-				"ERROR: Git identity for SVN user {:?} should be in the format \"Firstname Lastname <email@domain.com>\"",
-				key));
+			return std::unexpected(
+				fmt::format(
+					"ERROR: Git identity for SVN user {:?} should be in the format \"Firstname Lastname <email@domain.com>\"",
+					key
+				)
+			);
 		}
 	}
 
@@ -171,7 +190,8 @@ std::expected<void, std::string> Config::IsValid() const
 	if (identityMap.size() == 0)
 	{
 		return std::unexpected(
-			"WARNING: No identity map provided. Git author information will be inaccurate.");
+			"WARNING: No identity map provided. Git author information will be inaccurate."
+		);
 	}
 
 	try
@@ -186,15 +206,19 @@ std::expected<void, std::string> Config::IsValid() const
 	if (!domain)
 	{
 		return std::unexpected(
-			"WARNING: No domain provided. Any SVN users not present in the identity map will cause the program to terminate with an error.");
+			"WARNING: No domain provided. Any SVN users not present in the identity map will cause the program to terminate with an error."
+		);
 	}
 
 	for (const auto& rule : lfsRules)
 	{
 		if (!rule->ok())
 		{
-			return std::unexpected(fmt::format("ERROR: LFS regex {:?} is not valid: {}",
-											   rule->pattern(), rule->error()));
+			return std::unexpected(
+				fmt::format(
+					"ERROR: LFS regex {:?} is not valid: {}", rule->pattern(), rule->error()
+				)
+			);
 		}
 	}
 
@@ -207,8 +231,12 @@ std::expected<void, std::string> Config::IsValid() const
 	{
 		if (!rule.svnPath->ok())
 		{
-			return std::unexpected(fmt::format("ERROR: SVN path {:?} is not valid: {}",
-											   rule.svnPath->pattern(), rule.svnPath->error()));
+			return std::unexpected(
+				fmt::format(
+					"ERROR: SVN path {:?} is not valid: {}", rule.svnPath->pattern(),
+					rule.svnPath->error()
+				)
+			);
 		}
 
 		if (rule.gitRepository.empty() != rule.gitBranch.empty())
@@ -223,17 +251,20 @@ std::expected<void, std::string> Config::IsValid() const
 		if (!rule.skipRevision && !rule.svnPath->CheckRewriteString(rule.gitRepository, &error))
 		{
 			return std::unexpected(
-				fmt::format(errorMsg, rule.gitRepository, rule.svnPath->pattern(), error));
+				fmt::format(errorMsg, rule.gitRepository, rule.svnPath->pattern(), error)
+			);
 		}
 		if (!rule.skipRevision && !rule.svnPath->CheckRewriteString(rule.gitRepository, &error))
 		{
 			return std::unexpected(
-				fmt::format(errorMsg, rule.gitRepository, rule.svnPath->pattern(), error));
+				fmt::format(errorMsg, rule.gitRepository, rule.svnPath->pattern(), error)
+			);
 		}
 		if (!rule.svnPath->CheckRewriteString(rule.gitFilePath, &error))
 		{
 			return std::unexpected(
-				fmt::format(errorMsg, rule.gitFilePath, rule.svnPath->pattern(), error));
+				fmt::format(errorMsg, rule.gitFilePath, rule.svnPath->pattern(), error)
+			);
 		}
 	}
 	return {};

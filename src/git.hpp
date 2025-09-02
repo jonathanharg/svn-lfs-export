@@ -21,13 +21,14 @@ struct Mapping
 
 std::string GetAuthor(const Config& config, const std::string& username);
 
-std::string GetCommitMessage(const Config& config, const std::string& log,
-							 const std::string& username, long int rev);
+std::string GetCommitMessage(
+	const Config& config, const std::string& log, const std::string& username, long int rev
+);
 
 std::string GetTime(const Config& config, const std::string& svnTime);
 
-std::optional<Mapping> MapPath(const Config& config, const long int rev,
-							   const std::string_view& path);
+std::optional<Mapping>
+MapPath(const Config& config, const long int rev, const std::string_view& path);
 
 std::expected<void, std::string> WriteCommit(const Config& config, const svn::Revision& rev);
 

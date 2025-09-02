@@ -24,8 +24,10 @@ TEST_CASE("SVN log maps to commit message", "[git]")
 	CHECK(git::GetCommitMessage(config, "svn log", "svn usr", 123) == "my message");
 
 	config.commitMessage = "fmt usr:{usr} rev:{rev} log:{log}";
-	CHECK(git::GetCommitMessage(config, "svn log", "svn usr", 123) ==
-		  "fmt usr:svn usr rev:123 log:svn log");
+	CHECK(
+		git::GetCommitMessage(config, "svn log", "svn usr", 123) ==
+		"fmt usr:svn usr rev:123 log:svn log"
+	);
 }
 
 TEST_CASE("SVN time maps to git time", "[git]")
