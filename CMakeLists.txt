@@ -59,6 +59,7 @@ endif()
 include(cmake/dependencies.cmake)
 find_package(APR REQUIRED)
 find_package(Subversion REQUIRED)
+find_package(OpenSSL REQUIRED)
 
 include(cmake/warnings.cmake)
 include(cmake/cppcheck.cmake)
@@ -84,6 +85,7 @@ add_library(applib ${lib_sources})
 target_link_libraries(
 	applib
 	PUBLIC APR::APR
+		   OpenSSL::Crypto
 		   fmt::fmt
 		   re2::re2
 		   Subversion::fs

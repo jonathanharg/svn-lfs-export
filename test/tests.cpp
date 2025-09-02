@@ -57,3 +57,18 @@ TEST_CASE("SVN time maps to git time", "[git]")
 	config.timezone = "Europe/London";
 	CHECK(git::GetTime(config, "2015-11-16T04:44:26.025081Z") == "1447649066 +0000");
 }
+
+TEST_CASE("sha256 works")
+{
+	const char* kHelloWorldHash =
+		"dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f";
+	CHECK(git::GetSha256("Hello, World!") == kHelloWorldHash);
+}
+
+TEST_CASE("Git LFS pointers works")
+{
+	const char* kHelloWorldLFS = R"(version https://git-lfs.github.com/spec/v1
+oid sha256:dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f
+size 13)";
+	CHECK(git::GetLFSPointer("Hello, World!") == kHelloWorldLFS);
+}

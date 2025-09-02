@@ -27,6 +27,10 @@ std::string GetCommitMessage(
 
 std::string GetTime(const Config& config, const std::string& svnTime);
 
+std::string GetSha256(const std::string_view inputStr);
+
+std::string GetLFSPointer(const std::string_view inputStr);
+
 std::optional<Mapping>
 MapPath(const Config& config, const long int rev, const std::string_view& path);
 

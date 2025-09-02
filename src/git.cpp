@@ -7,12 +7,13 @@
 #include <date/tz.h>
 #include <fmt/base.h>
 #include <fmt/format.h>
+#include <openssl/sha.h>
 #include <re2/re2.h>
 
+#include <array>
 #include <chrono>
 #include <cstddef>
 #include <expected>
-#include <ios>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -55,6 +56,28 @@ std::string GetCommitMessage(
 	return fmt::format(
 		fmt::runtime(config.commitMessage), fmt::arg("log", log), fmt::arg("usr", username),
 		fmt::arg("rev", rev)
+	);
+}
+
+std::string GetSha256(const std::string_view input)
+{
+	std::array<unsigned char, SHA256_DIGEST_LENGTH> hash{};
+	SHA256(reinterpret_cast<const unsigned char*>(input.data()), input.size(), hash.data());
+
+	std::string result;
+	result.reserve(SHA256_DIGEST_LENGTH * 2);
+	for (unsigned char byte : hash)
+	{
+		result += fmt::format("{:02x}", byte);
+	}
+	return result;
+}
+
+std::string GetLFSPointer(const std::string_view input)
+{
+	return fmt::format(
+		"version https://git-lfs.github.com/spec/v1\noid sha256:{}\nsize {}", GetSha256(input),
+		input.size()
 	);
 }
 
