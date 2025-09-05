@@ -7,6 +7,7 @@
 #include <date/tz.h>
 #include <fmt/base.h>
 #include <fmt/format.h>
+#include <fmt/ostream.h>
 #include <openssl/sha.h>
 #include <re2/re2.h>
 
@@ -15,6 +16,7 @@
 #include <cstddef>
 #include <expected>
 #include <optional>
+#include <ostream>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -196,7 +198,8 @@ MapPath(const Config& config, const long int rev, const std::string_view& path)
 	return std::nullopt;
 }
 
-std::expected<void, std::string> WriteCommit(const Config& config, const svn::Revision& rev)
+std::expected<void, std::string>
+WriteCommit(const Config& config, const svn::Revision& rev, std::ostream& output)
 {
 	// 1. For each revision, get revision properties
 	//     - Author
@@ -266,10 +269,10 @@ std::expected<void, std::string> WriteCommit(const Config& config, const svn::Re
 		for (const auto& [branch, fileList] : branchMap)
 		{
 			std::string ref = fmt::format("refs/heads/{}", branch);
-			Output("commit {}", ref);
-			Output("original-oid r{}", rev.GetNumber());
-			Output("committer {} {}", committer, time);
-			Output("data {}\n{}", message.length(), message);
+			fmt::println(output, "commit {}", ref);
+			fmt::println(output, "original-oid r{}", rev.GetNumber());
+			fmt::println(output, "committer {} {}", committer, time);
+			fmt::println(output, "data {}\n{}", message.length(), message);
 
 			for (const auto* file : fileList)
 			{
@@ -277,14 +280,16 @@ std::expected<void, std::string> WriteCommit(const Config& config, const svn::Re
 
 				if (file->changeType == svn::File::Change::Delete)
 				{
-					Output("D {}", destination.path);
+					fmt::println(output, "D {}", destination.path);
 				}
 				else if (!file->isDirectory)
 				{
 					std::string_view buff{file->buffer.get(), file->size};
 
-					Output("M {} inline {}", static_cast<int>(Mode::Normal), destination.path);
-					Output("data {}\n{}", file->size, buff);
+					fmt::println(
+						output, "M {} inline {}", static_cast<int>(Mode::Normal), destination.path
+					);
+					fmt::println(output, "data {}\n{}", file->size, buff);
 				}
 			}
 		}

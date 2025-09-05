@@ -7,6 +7,7 @@
 #include <argparse/argparse.hpp>
 
 #include <cstdlib>
+#include <fstream>
 #include <iostream>
 
 int main()
@@ -31,11 +32,12 @@ int main()
 	long int stopRev = config.maxRevision.value_or(youngestRev);
 
 	LogInfo("Running from r{} to r{}", startRev, stopRev);
+	std::ofstream filestream{"output.txt"};
 
 	for (long int revNum = startRev; revNum <= stopRev; revNum++)
 	{
 		svn::Revision rev = repository.GetRevision(revNum);
-		auto result = git::WriteCommit(config, rev);
+		auto result = git::WriteCommit(config, rev, filestream);
 
 		if (!result.has_value())
 		{

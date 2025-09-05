@@ -14,9 +14,3 @@ inline void LogInfo(fmt::format_string<T...> fmt, T&&... args)
 {
 	fmt::println("progress {}", fmt::format(fmt, std::forward<T>(args)...));
 }
-
-template <typename... T>
-inline void Output(fmt::format_string<T...> fmt, T&&... args)
-{
-	fmt::println(fmt, std::forward<T>(args)...);
-}

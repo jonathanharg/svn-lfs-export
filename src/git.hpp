@@ -4,6 +4,7 @@
 
 #include <expected>
 #include <optional>
+#include <ostream>
 #include <string>
 #include <string_view>
 
@@ -34,6 +35,7 @@ std::string GetLFSPointer(const std::string_view inputStr);
 std::optional<Mapping>
 MapPath(const Config& config, const long int rev, const std::string_view& path);
 
-std::expected<void, std::string> WriteCommit(const Config& config, const svn::Revision& rev);
+std::expected<void, std::string>
+WriteCommit(const Config& config, const svn::Revision& rev, std::ostream& output);
 
 } // namespace git
