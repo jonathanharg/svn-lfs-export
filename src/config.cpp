@@ -3,6 +3,10 @@
 #include <date/tz.h>
 #include <fmt/base.h>
 #include <fmt/format.h>
+#include <git2.h>
+#include <git2/errors.h>
+#include <git2/pathspec.h>
+#include <git2/strarray.h>
 #include <re2/re2.h>
 #include <toml++/toml.hpp>
 
@@ -12,6 +16,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <vector>
 
 std::expected<Config, std::string> Config::FromFile(const std::string_view& path)
 {
@@ -75,13 +80,30 @@ std::expected<Config, std::string> Config::Parse(const toml::table& root)
 	{
 		for (const toml::node& rule : *lfsConfig)
 		{
-			const auto expression = rule.value<std::string_view>();
+			const auto expression = rule.value<std::string>();
 			if (!expression)
 			{
-				std::unexpected("ERROR: LFS must be defined as an array of regular expressions.");
+				return std::unexpected("ERROR: LFS must be defined as an array of git pathspecs.");
 			}
 
-			result.lfsRules.emplace_back(std::make_unique<RE2>(*expression));
+			result.lfsRuleStrs.push_back(*expression);
+		}
+
+		std::vector<char*> cPtrs;
+		cPtrs.reserve(result.lfsRuleStrs.size());
+		for (const std::string& rule : result.lfsRuleStrs)
+		{
+			cPtrs.push_back(const_cast<char*>(rule.data()));
+		}
+
+		const git_strarray paths{cPtrs.data(), cPtrs.size()};
+		int err = git_pathspec_new(std::out_ptr(result.lfsPathspec), &paths);
+
+		if (err)
+		{
+			std::string msg =
+				fmt::format("ERROR: Could not compile pathspec: {}", git_error_last()->message);
+			return std::unexpected(msg);
 		}
 	}
 
@@ -208,18 +230,6 @@ std::expected<void, std::string> Config::IsValid() const
 		return std::unexpected(
 			"WARNING: No domain provided. Any SVN users not present in the identity map will cause the program to terminate with an error."
 		);
-	}
-
-	for (const auto& rule : lfsRules)
-	{
-		if (!rule->ok())
-		{
-			return std::unexpected(
-				fmt::format(
-					"ERROR: LFS regex {:?} is not valid: {}", rule->pattern(), rule->error()
-				)
-			);
-		}
 	}
 
 	if (rules.size() == 0)

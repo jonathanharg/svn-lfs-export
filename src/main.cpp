@@ -5,6 +5,8 @@
 
 #include <apr_general.h>
 #include <argparse/argparse.hpp>
+#include <git2.h>
+#include <git2/global.h>
 
 #include <cstdlib>
 #include <fstream>
@@ -12,6 +14,7 @@
 
 int main()
 {
+	git_libgit2_init();
 	argparse::ArgumentParser program("svn-lfs-export");
 	const auto maybeConfig = Config::FromFile("config.toml");
 
@@ -45,4 +48,5 @@ int main()
 			return EXIT_FAILURE;
 		}
 	}
+	git_libgit2_shutdown();
 }

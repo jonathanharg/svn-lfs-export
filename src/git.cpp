@@ -1,13 +1,14 @@
 #include "config.hpp"
 #include "git.hpp"
 #include "svn.hpp"
-#include "utils.hpp"
 
 #include <date/date.h>
 #include <date/tz.h>
 #include <fmt/base.h>
 #include <fmt/format.h>
 #include <fmt/ostream.h>
+#include <git2.h>
+#include <git2/pathspec.h>
 #include <openssl/sha.h>
 #include <re2/re2.h>
 
@@ -184,14 +185,10 @@ MapPath(const Config& config, const long int rev, const std::string_view& path)
 		// Append any of the non-captured SVN path to the output git path
 		result.path.append(consumedPtr);
 
-		for (const auto& lfsRule : config.lfsRules)
-		{
-			if (RE2::FullMatch(result.path, *lfsRule))
-			{
-				result.lfs = true;
-				break;
-			}
-		}
+		const int res = git_pathspec_matches_path(
+			config.lfsPathspec.get(), GIT_PATHSPEC_DEFAULT, result.path.c_str()
+		);
+		result.lfs = res == 1;
 
 		return result;
 	}

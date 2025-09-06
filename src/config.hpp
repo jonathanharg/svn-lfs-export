@@ -1,4 +1,6 @@
 #pragma once
+#include <git2.h>
+#include <git2/pathspec.h>
 #include <re2/re2.h>
 #include <toml++/toml.hpp>
 
@@ -31,6 +33,9 @@ struct Rule
 
 struct Config
 {
+	using pathspec_ptr =
+		std::unique_ptr<git_pathspec, decltype([](git_pathspec* ps) { git_pathspec_free(ps); })>;
+
 	Config() :
 		createBaseCommit(kDefaultCreateBaseCommit),
 		strictMode(kDefaultStrictMode),
@@ -49,7 +54,8 @@ struct Config
 	std::string timezone;
 	std::string commitMessage;
 	std::vector<Rule> rules;
-	std::vector<std::unique_ptr<RE2>> lfsRules;
+	std::vector<std::string> lfsRuleStrs;
+	pathspec_ptr lfsPathspec;
 	std::unordered_map<std::string, std::string> identityMap;
 
 private:

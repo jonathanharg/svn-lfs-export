@@ -6,13 +6,15 @@ min_revision = 1
 max_revision = 1000
 # Squash all changes prior to min_revision into a single base commit
 create_base_commit = false
-# Regex to match LFS file paths IN GIT. In other words, these expressions will
-# be matched against the final file paths in the git repository (not the files
-# SVN paths). Note that any files matching these rules should also be in the
+# Git pathspec to match LFS file paths IN GIT. In other words, these expressions
+# will be matched against the final file paths in the git repository (not the
+# files SVN paths). Note that these pathspecs will be added to the
 # .gitattributes file.
 LFS = [
-	'.*\.psd$',
-	'^output/'
+	'*.psd',
+	'*.jpg',
+	'output/file.bin',
+	'docs/features/plan.pdf'
 ]
 # The git commit message to provide. Can use the variables
 #     - {log} The original SVN commit/log message
