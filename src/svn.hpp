@@ -4,6 +4,7 @@
 #include <svn_pools.h>
 #include <svn_repos.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>

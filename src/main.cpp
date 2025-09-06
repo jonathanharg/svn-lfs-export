@@ -9,6 +9,7 @@
 #include <git2/global.h>
 
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 
@@ -40,7 +41,7 @@ int main()
 	for (long int revNum = startRev; revNum <= stopRev; revNum++)
 	{
 		svn::Revision rev = repository.GetRevision(revNum);
-		auto result = git::WriteCommit(config, rev, filestream);
+		auto result = git::WriteCommit(config, rev, filestream, std::filesystem::current_path());
 
 		if (!result.has_value())
 		{

@@ -16,6 +16,8 @@
 #include <chrono>
 #include <cstddef>
 #include <expected>
+#include <filesystem>
+#include <fstream>
 #include <optional>
 #include <ostream>
 #include <sstream>
@@ -76,12 +78,30 @@ std::string GetSha256(const std::string_view input)
 	return result;
 }
 
-std::string GetLFSPointer(const std::string_view input)
+std::string WriteLFSFile(const std::string_view input, const std::filesystem::path& root)
 {
+	std::string hash = GetSha256(input);
+	std::filesystem::path path =
+		root / "lfs" / "objects" / hash.substr(0, 2) / hash.substr(2, 2) / hash;
+
+	std::filesystem::create_directories(path.parent_path());
+	std::ofstream file{path};
+	file << input;
+
 	return fmt::format(
-		"version https://git-lfs.github.com/spec/v1\noid sha256:{}\nsize {}", GetSha256(input),
-		input.size()
+		"version https://git-lfs.github.com/spec/v1\noid sha256:{}\nsize {}\n", hash, input.size()
 	);
+}
+
+std::string GetGitAttributesFile(const Config& config)
+{
+	std::string attributes;
+
+	for (const std::string& rule : config.lfsRuleStrs)
+	{
+		attributes.append(fmt::format("{} filter=lfs diff=lfs merge=lfs -text\n", rule));
+	}
+	return attributes;
 }
 
 std::string GetTime(const Config& config, const std::string& svnTime)
@@ -195,8 +215,10 @@ MapPath(const Config& config, const long int rev, const std::string_view& path)
 	return std::nullopt;
 }
 
-std::expected<void, std::string>
-WriteCommit(const Config& config, const svn::Revision& rev, std::ostream& output)
+std::expected<void, std::string> WriteCommit(
+	const Config& config, const svn::Revision& rev, std::ostream& output,
+	const std::filesystem::path& lfsRoot
+)
 {
 	// 1. For each revision, get revision properties
 	//     - Author
@@ -281,13 +303,29 @@ WriteCommit(const Config& config, const svn::Revision& rev, std::ostream& output
 				}
 				else if (!file->isDirectory)
 				{
-					std::string_view buff{file->buffer.get(), file->size};
+					std::string_view svnFile{file->buffer.get(), file->size};
+					std::string_view outputFile = svnFile;
+					std::string lfsPointer;
+
+					if (destination.lfs)
+					{
+						lfsPointer = WriteLFSFile(svnFile, lfsRoot);
+						outputFile = lfsPointer;
+					}
 
 					fmt::println(
 						output, "M {} inline {}", static_cast<int>(Mode::Normal), destination.path
 					);
-					fmt::println(output, "data {}\n{}", file->size, buff);
+					fmt::println(output, "data {}\n{}", outputFile.size(), outputFile);
 				}
+			}
+			std::string attributes = GetGitAttributesFile(config);
+			if (attributes.length() > 0)
+			{
+				// We don't need to be writing this for every commit, just the first to each repo
+				// Oh well, it's easier to do it this way for now
+				fmt::println(output, "M {} inline .gitattributes", static_cast<int>(Mode::Normal));
+				fmt::println(output, "data {}\n{}", attributes.size(), attributes);
 			}
 		}
 	}

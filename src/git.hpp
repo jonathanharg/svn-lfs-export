@@ -3,6 +3,7 @@
 #include "svn.hpp"
 
 #include <expected>
+#include <filesystem>
 #include <optional>
 #include <ostream>
 #include <string>
@@ -30,12 +31,16 @@ std::string GetTime(const Config& config, const std::string& svnTime);
 
 std::string GetSha256(const std::string_view inputStr);
 
-std::string GetLFSPointer(const std::string_view inputStr);
+std::string WriteLFSFile(const std::string_view input, const std::filesystem::path& root);
+
+std::string GetGitAttributesFile(const Config& config);
 
 std::optional<Mapping>
 MapPath(const Config& config, const long int rev, const std::string_view& path);
 
-std::expected<void, std::string>
-WriteCommit(const Config& config, const svn::Revision& rev, std::ostream& output);
+std::expected<void, std::string> WriteCommit(
+	const Config& config, const svn::Revision& rev, std::ostream& output,
+	const std::filesystem::path& lfsRoot
+);
 
 } // namespace git
