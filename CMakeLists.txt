@@ -60,6 +60,7 @@ include(cmake/dependencies.cmake)
 find_package(APR REQUIRED)
 find_package(Subversion REQUIRED)
 find_package(OpenSSL REQUIRED)
+find_package(libgit2 REQUIRED)
 
 include(cmake/warnings.cmake)
 include(cmake/cppcheck.cmake)
@@ -87,6 +88,7 @@ target_link_libraries(
 	PUBLIC APR::APR
 		   OpenSSL::Crypto
 		   fmt::fmt
+		   libgit2::libgit2package
 		   re2::re2
 		   Subversion::fs
 		   Subversion::repos

@@ -22,7 +22,7 @@ IncludeBlocks: Regroup
 IncludeCategories:
   - Regex: '^".*'
     Priority: 0
-  - Regex: '^<(fmt|re2|argparse|apr_|svn_|date|toml\+\+|catch2|openssl).*'
+  - Regex: '^<(fmt|re2|argparse|apr_|svn_|date|toml\+\+|catch2|openssl|git2).*'
     Priority: 1
   - Regex: '^<.*'
     Priority: 2
