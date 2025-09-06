@@ -205,10 +205,14 @@ MapPath(const Config& config, const long int rev, const std::string_view& path)
 		// Append any of the non-captured SVN path to the output git path
 		result.path.append(consumedPtr);
 
-		const int res = git_pathspec_matches_path(
-			config.lfsPathspec.get(), GIT_PATHSPEC_DEFAULT, result.path.c_str()
-		);
-		result.lfs = res == 1;
+		// Pathspecs will match everything if they're empty, only run it if it's not empty
+		if (config.lfsRuleStrs.size() > 0)
+		{
+			const int res = git_pathspec_matches_path(
+				config.lfsPathspec.get(), GIT_PATHSPEC_DEFAULT, result.path.c_str()
+			);
+			result.lfs = res == 1;
+		}
 
 		return result;
 	}
