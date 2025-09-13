@@ -207,6 +207,11 @@ std::optional<Git::Mapping> Git::MapPath(const long int rev, const std::string_v
 		// Append any of the non-captured SVN path to the output git path
 		result.path.append(consumedPtr);
 
+		if (!result.path.empty() && result.path.front() == '/')
+		{
+			result.path.erase(0, 1);
+		}
+
 		// Pathspecs will match everything if they're empty, only run it if it's not empty
 		if (mConfig.lfsRuleStrs.size() > 0)
 		{
