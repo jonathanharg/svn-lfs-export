@@ -32,7 +32,7 @@ public:
 	Pool& operator=(const Pool&) = delete;
 	Pool& operator=(Pool&&) = delete;
 
-	[[nodiscard]] operator apr_pool_t*() const { return ptr; }
+	operator apr_pool_t*() const { return ptr; }
 
 	void clear() { svn_pool_clear(ptr); }
 };

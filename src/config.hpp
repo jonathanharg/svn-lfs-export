@@ -59,7 +59,7 @@ struct Config
 	std::unordered_map<std::string, std::string> identityMap;
 
 private:
-	[[nodiscard]] std::expected<void, std::string> IsValid() const;
+	std::expected<void, std::string> IsValid() const;
 
 	static constexpr bool kDefaultCreateBaseCommit = false;
 	static constexpr bool kDefaultStrictMode = false;
