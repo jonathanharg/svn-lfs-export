@@ -28,7 +28,7 @@ int main()
 	const Config& config = maybeConfig.value();
 
 	apr_initialize();
-	svn::Repository repository = svn::Repository(config.svnRepo);
+	auto repository = svn::Repository(config.svnRepo);
 
 	long int youngestRev = repository.GetYoungestRevision();
 
@@ -42,6 +42,13 @@ int main()
 	{
 		svn::Revision rev = repository.GetRevision(revNum);
 		auto result = git::WriteCommit(config, rev, filestream, std::filesystem::current_path());
+
+		if (revNum % 500 == 0)
+		{
+			float percent = 100.0F * (static_cast<float>(revNum) / static_cast<float>(stopRev));
+			LogInfo("Converting {}% [{}/{}]", percent, revNum, stopRev);
+			LogError("Converting {}% [{}/{}]", percent, revNum, stopRev);
+		}
 
 		if (!result.has_value())
 		{
