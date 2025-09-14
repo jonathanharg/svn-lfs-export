@@ -222,7 +222,9 @@ std::expected<void, std::string> Config::IsValid() const
 	}
 	catch (const std::exception& e)
 	{
-		return std::unexpected(fmt::format("ERROR: Timezone {:?} is not valid.", timezone));
+		return std::unexpected(
+			fmt::format("ERROR: Timezone {:?} is not valid. {}", timezone, e.what())
+		);
 	}
 
 	if (!domain)

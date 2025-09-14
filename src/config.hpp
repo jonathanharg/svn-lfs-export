@@ -40,7 +40,7 @@ struct Config
 		createBaseCommit(kDefaultCreateBaseCommit),
 		strictMode(kDefaultStrictMode),
 		timezone(kDefaultTimeZone),
-		commitMessage(kDefaultCommitMessage) {};
+		commitMessage(kDefaultCommitMessage) {}
 
 	static std::expected<Config, std::string> Parse(const toml::table& root);
 	static std::expected<Config, std::string> FromFile(const std::string_view&);

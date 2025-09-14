@@ -185,7 +185,7 @@ MapPath(const Config& config, const long int rev, const std::string_view& path)
 
 		if (rule.skipRevision)
 		{
-			return Mapping(true);
+			return Mapping{.skip = true};
 		}
 
 		Mapping result;

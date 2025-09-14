@@ -65,11 +65,11 @@ struct File
 class Revision
 {
 public:
-	const std::string& GetAuthor() const { return mAuthor; };
-	const std::string& GetLog() const { return mLog; };
-	const std::string& GetDate() const { return mDate; };
-	long int GetNumber() const { return mRevision; };
-	std::span<const File> GetFiles() const { return mFiles; };
+	const std::string& GetAuthor() const { return mAuthor; }
+	const std::string& GetLog() const { return mLog; }
+	const std::string& GetDate() const { return mDate; }
+	long int GetNumber() const { return mRevision; }
+	std::span<const File> GetFiles() const { return mFiles; }
 
 private:
 	Revision(svn_fs_t* repositoryFs, long int revision);
