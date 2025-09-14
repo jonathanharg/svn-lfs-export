@@ -3,7 +3,6 @@ if(Subversion_FIND_ALREADY_INCLUDED)
 endif()
 set(Subversion_FIND_ALREADY_INCLUDED TRUE)
 
-# Allow user to hint root path
 set(_svn_root_hint
 	${Subversion_ROOT}
 	CACHE PATH "Root directory of Subversion installation"
@@ -81,7 +80,6 @@ if(Subversion_FOUND)
 
 endif()
 
-# Provide user friendly message
 if(Subversion_FOUND)
 	message(STATUS "Found Subversion: ${Subversion_LIBRARIES} with includes ${Subversion_INCLUDE_DIR}")
 else()

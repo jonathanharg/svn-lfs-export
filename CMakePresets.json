@@ -1,0 +1,48 @@
+{
+    "$schema": "https://cmake.org/cmake/help/latest/_downloads/3e2d73bff478d88a7de0de736ba5e361/schema.json",
+    "version": 10,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 31,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "base",
+            "hidden": true,
+            "binaryDir": "build",
+            "warnings": {
+                "dev": true,
+                "deprecated": true,
+                "unusedCli": true,
+                "systemVars": false
+            },
+            "cacheVariables": {
+                "CMAKE_CXX_EXTENSIONS": false,
+                "CMAKE_CXX_STANDARD": "23",
+                "CMAKE_CXX_STANDARD_REQUIRED": true,
+                "CMAKE_EXPORT_COMPILE_COMMANDS": true,
+                "CMAKE_CONFIGURATION_TYPES": "Debug;Release;RelWithDebInfo;MinSizeRel;Sanitize",
+                "CMAKE_CXX_FLAGS_SANITIZE": "$env{CMAKE_CXX_FLAGS_SANITIZE} -fsanitize=address,undefined -fno-omit-frame-pointer -fno-common",
+                "CMAKE_EXE_LINKER_FLAGS_SANITIZE": "$env{CMAKE_EXE_LINKER_FLAGS_SANITIZE} -fsanitize=address,undefined",
+                "CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE": true
+            }
+        },
+        {
+            "name": "ninja",
+            "displayName": "Ninja",
+            "generator": "Ninja Multi-Config",
+            "inherits": [
+                "base"
+            ]
+        },
+        {
+            "name": "xcode",
+            "displayName": "Xcode",
+            "generator": "Xcode",
+            "inherits": [
+                "base"
+            ]
+        }
+    ]
+}
