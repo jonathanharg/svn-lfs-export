@@ -69,7 +69,7 @@ public:
 	const std::string& GetLog() const { return mLog; };
 	const std::string& GetDate() const { return mDate; };
 	long int GetNumber() const { return mRevision; };
-	const std::span<const File> GetFiles() const { return mFiles; };
+	std::span<const File> GetFiles() const { return mFiles; };
 
 private:
 	Revision(svn_fs_t* repositoryFs, long int revision);

@@ -179,8 +179,8 @@ MapPath(const Config& config, const long int rev, const std::string_view& path)
 		// Insert the whole capture so the \0 substitution can be used properly
 		int captureGroupsWith0th = capturesGroups + 1;
 
-		auto wholeCaptureBegin = path.begin();
-		auto wholeCaptureEnd = consumedPtr.begin();
+		const auto* wholeCaptureBegin = path.begin();
+		const auto* wholeCaptureEnd = consumedPtr.begin();
 		capturesStrings.emplace(capturesStrings.begin(), wholeCaptureBegin, wholeCaptureEnd);
 
 		if (rule.skipRevision)
