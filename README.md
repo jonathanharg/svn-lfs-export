@@ -1,15 +1,22 @@
 # SVN LFS Export
 
-## Build
-Configure
-```
-cmake -S . -B ./build
-```
-Alternatively build with a generator, e.g. `cmake -S . -B ./build -G Ninja` or `cmake -S . -B ./build -G Xcode`
+## Dependencies
+ - apr
+ - svn
+ - OpenSSL
+ - libgit2
 
-Build
+All other dependencies will be downloaded during configuration if required.
+
+## Build
+Configure from the root directory. Available presets `ninja` or `xcode`
 ```
-cmake --build ./build
+cmake --preset=ninja
+```
+
+Build. Available configs are `Debug` `Release` `RelWithDebInfo` `MinSizeRel` and `Sanitize`
+```
+cmake --build build --config=release
 ```
 
 Test
