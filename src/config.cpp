@@ -8,7 +8,7 @@
 #include <git2/pathspec.h>
 #include <git2/strarray.h>
 #include <re2/re2.h>
-#include <toml++/toml.hpp>
+#include <toml++/toml.h>
 
 #include <exception>
 #include <expected>
@@ -183,7 +183,7 @@ std::expected<void, std::string> Config::IsValid() const
 			fmt::arg("rev", 1)
 		);
 	}
-	catch (fmt::v11::format_error& err)
+	catch (fmt::v12::format_error& err)
 	{
 		return std::unexpected(
 			fmt::format("ERROR: Invalid commit_message template (fmtlib error {:?}).", err.what())

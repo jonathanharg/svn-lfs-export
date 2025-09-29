@@ -2,7 +2,7 @@
 #include <git2.h>
 #include <git2/pathspec.h>
 #include <re2/re2.h>
-#include <toml++/toml.hpp>
+#include <toml++/toml.h>
 
 #include <expected>
 #include <memory>

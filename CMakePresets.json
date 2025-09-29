@@ -18,6 +18,7 @@
                 "systemVars": false
             },
             "cacheVariables": {
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
                 "CMAKE_CXX_EXTENSIONS": false,
                 "CMAKE_CXX_STANDARD": "23",
                 "CMAKE_CXX_STANDARD_REQUIRED": true,

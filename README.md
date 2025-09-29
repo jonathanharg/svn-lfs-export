@@ -3,10 +3,8 @@
 ## Dependencies
  - apr
  - svn
- - OpenSSL
- - libgit2
 
-All other dependencies will be downloaded during configuration if required.
+Use vcpkg to install all other dependencies.
 
 ## Build
 Configure from the root directory. Available presets `ninja` or `xcode`

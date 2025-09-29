@@ -1,0 +1,18 @@
+{
+  "dependencies": [
+    "argparse",
+    "catch2",
+    "date",
+    "fmt",
+    "libgit2",
+    "openssl",
+    "re2",
+    "tomlplusplus"
+  ],
+  "overrides": [
+    {
+      "name": "tomlplusplus",
+      "version": "3.1.0"
+    }
+  ]
+}
