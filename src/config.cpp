@@ -51,7 +51,7 @@ std::expected<Config, std::string> Config::Parse(const toml::table& root)
 	if (!repositoryValue)
 	{
 		return std::unexpected(
-			"ERROR: Failed to parse the SVN repository string. Make sure a valid path to a on-disk SVN repository is provided."
+			"ERROR: No SVN repository path, provide a path to a valid on-disk SVN repository."
 		);
 	}
 

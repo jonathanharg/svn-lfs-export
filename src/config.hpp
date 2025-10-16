@@ -42,8 +42,9 @@ struct Config
 		timezone(kDefaultTimeZone),
 		commitMessage(kDefaultCommitMessage) {}
 
-	static std::expected<Config, std::string> Parse(const toml::table& root);
 	static std::expected<Config, std::string> FromFile(const std::string_view&);
+
+	std::expected<void, std::string> IsValid() const;
 
 	bool createBaseCommit;
 	bool strictMode;
@@ -59,7 +60,7 @@ struct Config
 	std::unordered_map<std::string, std::string> identityMap;
 
 private:
-	std::expected<void, std::string> IsValid() const;
+	static std::expected<Config, std::string> Parse(const toml::table& root);
 
 	static constexpr bool kDefaultCreateBaseCommit = false;
 	static constexpr bool kDefaultStrictMode = false;
