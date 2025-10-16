@@ -26,9 +26,6 @@
 #include <unordered_map>
 #include <vector>
 
-namespace git
-{
-
 enum class Mode
 {
 	Normal = 100644,
@@ -38,33 +35,31 @@ enum class Mode
 	Subdirectory = 040000,
 };
 
-std::string GetAuthor(const Config& config, const std::string& username)
+std::string Git::GetAuthor(const std::string& username)
 {
-	const std::string& domain = config.domain.value_or("localhost");
+	const std::string& domain = mConfig.domain.value_or("localhost");
 
 	if (username.empty())
 	{
 		return fmt::format("Unknown User <unknown@{}>", domain);
 	}
-	if (config.identityMap.contains(username))
+	if (mConfig.identityMap.contains(username))
 	{
-		return config.identityMap.at(username);
+		return mConfig.identityMap.at(username);
 	}
 
 	return fmt::format("{} <{}@{}>", username, username, domain);
 }
 
-std::string GetCommitMessage(
-	const Config& config, const std::string& log, const std::string& username, long int rev
-)
+std::string Git::GetCommitMessage(const std::string& log, const std::string& username, long int rev)
 {
 	return fmt::format(
-		fmt::runtime(config.commitMessage), fmt::arg("log", log), fmt::arg("usr", username),
+		fmt::runtime(mConfig.commitMessage), fmt::arg("log", log), fmt::arg("usr", username),
 		fmt::arg("rev", rev)
 	);
 }
 
-std::string GetSha256(const std::string_view input)
+std::string Git::GetSha256(const std::string_view input)
 {
 	std::array<unsigned char, SHA256_DIGEST_LENGTH> hash{};
 	SHA256(reinterpret_cast<const unsigned char*>(input.data()), input.size(), hash.data());
@@ -78,7 +73,7 @@ std::string GetSha256(const std::string_view input)
 	return result;
 }
 
-std::string WriteLFSFile(const std::string_view input, const std::filesystem::path& root)
+std::string Git::WriteLFSFile(const std::string_view input, const std::filesystem::path& root)
 {
 	std::string hash = GetSha256(input);
 	std::filesystem::path path =
@@ -93,18 +88,18 @@ std::string WriteLFSFile(const std::string_view input, const std::filesystem::pa
 	);
 }
 
-std::string GetGitAttributesFile(const Config& config)
+std::string Git::GetGitAttributesFile()
 {
 	std::string attributes;
 
-	for (const std::string& rule : config.lfsRuleStrs)
+	for (const std::string& rule : mConfig.lfsRuleStrs)
 	{
 		attributes.append(fmt::format("{} filter=lfs diff=lfs merge=lfs -text\n", rule));
 	}
 	return attributes;
 }
 
-std::string GetTime(const Config& config, const std::string& svnTime)
+std::string Git::GetTime(const std::string& svnTime)
 {
 	// It looks like SVN stores dates in UTC time
 	// https://svn.haxx.se/users/archive-2003-09/0322.shtml
@@ -118,7 +113,7 @@ std::string GetTime(const Config& config, const std::string& svnTime)
 
 	auto unixEpoch = utcTime.time_since_epoch().count();
 
-	const date::time_zone* tz = date::get_tzdb().locate_zone(config.timezone);
+	const date::time_zone* tz = date::get_tzdb().locate_zone(mConfig.timezone);
 
 	date::zoned_time<std::chrono::seconds> zonedTime{tz, utcTime};
 	std::string formattedOffset = date::format("%z", zonedTime);
@@ -126,10 +121,9 @@ std::string GetTime(const Config& config, const std::string& svnTime)
 	return fmt::format("{} {}", unixEpoch, formattedOffset);
 }
 
-std::optional<Mapping>
-MapPath(const Config& config, const long int rev, const std::string_view& path)
+std::optional<Git::Mapping> Git::MapPath(const long int rev, const std::string_view& path)
 {
-	const std::vector<Rule>& rules = config.rules;
+	const std::vector<Rule>& rules = mConfig.rules;
 
 	for (const Rule& rule : rules)
 	{
@@ -206,10 +200,10 @@ MapPath(const Config& config, const long int rev, const std::string_view& path)
 		result.path.append(consumedPtr);
 
 		// Pathspecs will match everything if they're empty, only run it if it's not empty
-		if (config.lfsRuleStrs.size() > 0)
+		if (mConfig.lfsRuleStrs.size() > 0)
 		{
 			const int res = git_pathspec_matches_path(
-				config.lfsPathspec.get(), GIT_PATHSPEC_DEFAULT, result.path.c_str()
+				mConfig.lfsPathspec.get(), GIT_PATHSPEC_DEFAULT, result.path.c_str()
 			);
 			result.lfs = res == 1;
 		}
@@ -219,9 +213,8 @@ MapPath(const Config& config, const long int rev, const std::string_view& path)
 	return std::nullopt;
 }
 
-std::expected<void, std::string> WriteCommit(
-	const Config& config, const svn::Revision& rev, std::ostream& output,
-	const std::filesystem::path& lfsRoot
+std::expected<void, std::string> Git::WriteCommit(
+	const svn::Revision& rev, std::ostream& output, const std::filesystem::path& lfsRoot
 )
 {
 	// 1. For each revision, get revision properties
@@ -245,10 +238,9 @@ std::expected<void, std::string> WriteCommit(
 	//  - Branch creation, working out "from" commit
 	//  - Merging?
 
-	std::string committer = git::GetAuthor(config, rev.GetAuthor());
-	std::string message =
-		git::GetCommitMessage(config, rev.GetLog(), rev.GetAuthor(), rev.GetNumber());
-	std::string time = git::GetTime(config, rev.GetDate());
+	std::string committer = GetAuthor(rev.GetAuthor());
+	std::string message = GetCommitMessage(rev.GetLog(), rev.GetAuthor(), rev.GetNumber());
+	std::string time = GetTime(rev.GetDate());
 
 	std::unordered_map<const svn::File*, Mapping> fileMappings;
 
@@ -259,11 +251,11 @@ std::expected<void, std::string> WriteCommit(
 
 	for (const auto& file : rev.GetFiles())
 	{
-		std::optional<Mapping> destination = MapPath(config, rev.GetNumber(), file.path);
+		std::optional<Mapping> destination = MapPath(rev.GetNumber(), file.path);
 
 		if (!destination)
 		{
-			if (config.strictMode)
+			if (mConfig.strictMode)
 			{
 				return std::unexpected(
 					fmt::format(
@@ -323,7 +315,7 @@ std::expected<void, std::string> WriteCommit(
 					fmt::println(output, "data {}\n{}", outputFile.size(), outputFile);
 				}
 			}
-			std::string attributes = GetGitAttributesFile(config);
+			std::string attributes = GetGitAttributesFile();
 			if (attributes.length() > 0)
 			{
 				// We don't need to be writing this for every commit, just the first to each repo
@@ -336,5 +328,3 @@ std::expected<void, std::string> WriteCommit(
 
 	return {};
 }
-
-} // namespace git

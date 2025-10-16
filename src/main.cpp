@@ -27,6 +27,8 @@ int main()
 
 	const Config& config = maybeConfig.value();
 
+	Git git(config);
+
 	apr_initialize();
 	auto repository = svn::Repository(config.svnRepo);
 
@@ -41,7 +43,7 @@ int main()
 	for (long int revNum = startRev; revNum <= stopRev; revNum++)
 	{
 		svn::Revision rev = repository.GetRevision(revNum);
-		auto result = git::WriteCommit(config, rev, filestream, std::filesystem::current_path());
+		auto result = git.WriteCommit(rev, filestream, std::filesystem::current_path());
 
 		if (revNum % 500 == 0)
 		{
