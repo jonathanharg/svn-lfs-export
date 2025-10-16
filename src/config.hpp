@@ -37,7 +37,6 @@ struct Config
 		std::unique_ptr<git_pathspec, decltype([](git_pathspec* ps) { git_pathspec_free(ps); })>;
 
 	Config() :
-		createBaseCommit(kDefaultCreateBaseCommit),
 		strictMode(kDefaultStrictMode),
 		timezone(kDefaultTimeZone),
 		commitMessage(kDefaultCommitMessage) {}
@@ -46,7 +45,6 @@ struct Config
 
 	std::expected<void, std::string> IsValid() const;
 
-	bool createBaseCommit;
 	bool strictMode;
 	std::optional<long int> minRevision;
 	std::optional<long int> maxRevision;
@@ -62,7 +60,6 @@ struct Config
 private:
 	static std::expected<Config, std::string> Parse(const toml::table& root);
 
-	static constexpr bool kDefaultCreateBaseCommit = false;
 	static constexpr bool kDefaultStrictMode = false;
 	static constexpr std::string_view kDefaultTimeZone = "Etc/UTC";
 	static constexpr std::string_view kDefaultCommitMessage =

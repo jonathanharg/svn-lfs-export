@@ -4,8 +4,6 @@ svn_repository = 'path/to/repository'
 min_revision = 1
 # SVN revision to stop migrating at, defaults to the latest revision
 max_revision = 1000
-# Squash all changes prior to min_revision into a single base commit
-create_base_commit = false
 # Git pathspec to match LFS file paths IN GIT. In other words, these expressions
 # will be matched against the final file paths in the git repository (not the
 # files SVN paths). Note that these pathspecs will be added to the

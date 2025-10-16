@@ -41,7 +41,6 @@ std::expected<Config, std::string> Config::Parse(const toml::table& root)
 	result.minRevision = root["min_revision"].value<long int>();
 	result.maxRevision = root["max_revision"].value<long int>();
 	result.domain = root["domain"].value<std::string>();
-	result.createBaseCommit = root["create_base_commit"].value_or(kDefaultCreateBaseCommit);
 	result.strictMode = root["strict_mode"].value_or(kDefaultStrictMode);
 	result.timezone = root["time_zone"].value_or(kDefaultTimeZone);
 	result.commitMessage = root["commit_message"].value_or(kDefaultCommitMessage);
