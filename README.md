@@ -14,7 +14,7 @@ cmake --preset=ninja
 
 Build. Available configs are `Debug` `Release` `RelWithDebInfo` `MinSizeRel` and `Sanitize`
 ```
-cmake --build build --config=release
+cmake --build build --config=Release
 ```
 
 Test
