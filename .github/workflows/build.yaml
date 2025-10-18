@@ -1,0 +1,26 @@
+name: Build
+
+on:
+  push:
+    branches: [ actions ]
+
+jobs:
+  build:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Configure
+      run: cmake --preset=ninja
+
+    - name: Build
+      run: cmake --build build --config=Release
+
+    - name: Test
+      run: cmake --build build && ctest --test-dir build
