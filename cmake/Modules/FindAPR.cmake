@@ -8,15 +8,14 @@ set(_apr_root_hint
 	CACHE PATH "Root directory of APR installation"
 )
 
+set(_apr_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
+set(CMAKE_FIND_LIBRARY_SUFFIXES .a)
+
 find_path(
 	APR_INCLUDE_DIR
 	NAMES apr.h
 	HINTS ${_apr_root_hint} ENV APRPATH
 	PATH_SUFFIXES include include/apr-1 include/apr-1.0
-	# HACK: CMake first finds an APR .tbd file in Xcode.app/.../.../MacOSX.sdk/... which
-	# it then tries to link to and fails silently, causing a runtime crash.
-	# Remove the SDK from the search paths so it can find the correct one.
-	$<$<PLATFORM_ID:Darwin>:NO_CMAKE_SYSTEM_PATH>
 	DOC "APR include directory"
 )
 
@@ -25,10 +24,6 @@ find_library(
 	NAMES apr-1 apr-1.0
 	HINTS ${_apr_root_hint} ENV APRPATH
 	PATH_SUFFIXES lib
-	# HACK: CMake first finds an APR .tbd file in Xcode.app/.../.../MacOSX.sdk/... which
-	# it then tries to link to and fails silently, causing a runtime crash.
-	# Remove the SDK from the search paths so it can find the correct one.
-	$<$<PLATFORM_ID:Darwin>:NO_CMAKE_SYSTEM_PATH>
 	DOC "APR library"
 )
 
@@ -52,7 +47,9 @@ if(APR_FOUND)
 endif()
 
 if(APR_FOUND)
-	message(STATUS "Found APR: ${APR_LIBRARY} with includes ${APR_INCLUDE_DIR}")
+	message(STATUS "Found APR: ${APR_LIBRARY}")
 else()
 	message(STATUS "APR not found")
 endif()
+
+set(CMAKE_FIND_LIBRARY_SUFFIXES ${_apr_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES})

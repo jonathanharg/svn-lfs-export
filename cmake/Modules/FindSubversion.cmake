@@ -8,6 +8,9 @@ set(_svn_root_hint
 	CACHE PATH "Root directory of Subversion installation"
 )
 
+set(_svn_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
+set(CMAKE_FIND_LIBRARY_SUFFIXES .a)
+
 find_path(
 	Subversion_INCLUDE_DIR
 	NAMES svn_version.h
@@ -81,7 +84,9 @@ if(Subversion_FOUND)
 endif()
 
 if(Subversion_FOUND)
-	message(STATUS "Found Subversion: ${Subversion_LIBRARIES} with includes ${Subversion_INCLUDE_DIR}")
+	message(STATUS "Found Subversion: ${Subversion_LIBRARIES}")
 else()
 	message(STATUS "Subversion not found")
 endif()
+
+set(CMAKE_FIND_LIBRARY_SUFFIXES ${_svn_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES})
