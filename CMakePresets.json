@@ -32,7 +32,7 @@
         {
             "name": "ninja",
             "displayName": "Ninja",
-            "generator": "Ninja",
+            "generator": "Ninja Multi-Config",
             "inherits": [
                 "base"
             ]
