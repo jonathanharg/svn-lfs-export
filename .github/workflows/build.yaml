@@ -6,17 +6,36 @@ on:
 
 jobs:
   build:
-    name: ${{ matrix.os }}
+    name: ${{ matrix.os }} ${{ matrix.compiler }}
     runs-on: ${{ matrix.os }}
+
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os:
+          - ubuntu-latest
+          - macos-latest
+        compiler:
+          - gcc
+          - clang
+        exclude:
+          - os: macos-latest
+            compiler: gcc
 
     steps:
     - uses: actions/checkout@v5
     - uses: lukka/get-cmake@latest
     - uses: lukka/run-vcpkg@v11
+
+    - name: Set compiler
+      run: |
+        if [ "${{ matrix.compiler }}" = "clang" ]; then
+          echo "CC=clang" >> $GITHUB_ENV
+          echo "CXX=clang++" >> $GITHUB_ENV
+        else
+          echo "CC=gcc" >> $GITHUB_ENV
+          echo "CXX=g++" >> $GITHUB_ENV
+        fi
 
     - name: Install dependencies (macOS)
       if: runner.os == 'macOS'
