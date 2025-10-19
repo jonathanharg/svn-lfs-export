@@ -38,3 +38,6 @@ jobs:
 
     - name: Test
       run: cmake --build build && ctest --test-dir build
+
+      # TODO:
+      # Fix internal linkage on Linux
