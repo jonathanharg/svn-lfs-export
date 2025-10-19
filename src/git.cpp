@@ -299,7 +299,8 @@ std::expected<void, std::string> Git::WriteCommit(
 				}
 				else if (!file->isDirectory)
 				{
-					std::string_view svnFile{file->buffer.get(), file->size};
+					auto fileContents = file->GetContents();
+					std::string_view svnFile{fileContents.get(), file->size};
 					std::string_view outputFile = svnFile;
 					std::string lfsPointer;
 
