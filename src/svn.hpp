@@ -54,13 +54,17 @@ struct File
 
 	explicit File(svn_fs_path_change3_t* change, svn_fs_root_t* revisionFs);
 
+	std::unique_ptr<char[]> GetContents() const;
+
 	std::string path;
 	bool isDirectory;
 	bool isExecutable;
 	Change changeType;
 	size_t size = 0;
-	std::unique_ptr<char[]> buffer;
 	std::optional<CopyFrom> copiedFrom;
+
+private:
+	svn_fs_root_t* mRevisionFs;
 };
 
 class Revision
@@ -82,6 +86,8 @@ private:
 	std::string mLog;
 	std::string mDate;
 	std::vector<File> mFiles;
+
+	svn::Pool mRootPool;
 
 	friend class Repository;
 };

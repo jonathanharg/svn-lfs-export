@@ -317,7 +317,8 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 				}
 				else if (!file->isDirectory)
 				{
-					std::string_view svnFile{file->buffer.get(), file->size};
+					auto fileContents = file->GetContents();
+					std::string_view svnFile{fileContents.get(), file->size};
 					std::string_view outputFile = svnFile;
 					std::string lfsPointer;
 					Mode mode = file->isExecutable ? Mode::Executable : Mode::Normal;
