@@ -1,9 +1,6 @@
 # REQUIRED: File path to the on-disk SVN repository
 svn_repository = 'path/to/repository'
-# SVN revision to begin migrating from, defaults to 1
-min_revision = 1
-# SVN revision to stop migrating at, defaults to the latest revision
-max_revision = 1000
+
 # Git pathspec to match LFS file paths IN GIT. In other words, these expressions
 # will be matched against the final file paths in the git repository (not the
 # files SVN paths). Note that these pathspecs will be added to the
@@ -14,6 +11,7 @@ LFS = [
 	'output/file.bin',
 	'docs/features/plan.pdf'
 ]
+
 # The git commit message to provide. Can use the variables
 #     - {log} The original SVN commit/log message
 #     - {usr} The original committers SVN username
@@ -23,13 +21,16 @@ LFS = [
 #
 # This commit was converted from revision r{rev} by svn-lfs-export.
 # """
+
 # Require all files in all commits to match a provided rule. If a file in a commit does
 # not match any rule, the program will terminate with an error.
-strict_mode = false
+strict_mode = true
+
 # Time zone of the server. All SVN times are stored in UTC, but this will give (more)
 # accurate git offsets. Defaults to "Etc/UTC". See
 # https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 time_zone = "Europe/London"
+
 # REQUIRED: Either an identity_map or domain (preferably both)
 # Maps unknown users to 'svnusername <svnusername@yourcompany.com>'
 domain = 'yourcompany.com'
@@ -42,17 +43,22 @@ jsmith = 'John Smith <jsmith@yourcompany.com>'
 # last) will apply, all subsequent rules will be ignored.
 
 [[rule]]
+
 # REQUIRED: Regex to match SVN path, with standard regex captures.
 # Captures:            v \1           v \2
 svn_path = '/projects/([^/]+)/branch/([^/]+)/'
+
 # Path to an existing git repository. If no repository is provided the committed files
 # will be ignored. Regex replacements can be used here.
 repository = 'my_repos/\1'
+
 # The git branch to map to. Required if repository is provided. Regex replacements can
 # be used here.
 branch = 'svn_\2'
+
 # The git path to map to, can be blank. Anything remaining not captured in svn_path
 # will be appended as the git path.
+
 git_path = '\1_src/'
 # Optional min and max revisions (inclusive) this rule should apply to.
 min_revision = 1

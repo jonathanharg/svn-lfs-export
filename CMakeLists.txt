@@ -47,6 +47,18 @@ set_property(TARGET svn-lfs-export_exe PROPERTY OUTPUT_NAME svn-lfs-export)
 target_compile_features(svn-lfs-export_exe PRIVATE cxx_std_23)
 target_link_libraries(svn-lfs-export_exe PRIVATE svn-lfs-export_lib argparse::argparse svn-lfs-export_warnings)
 
+target_compile_definitions(svn-lfs-export_exe PRIVATE PROJECT_VERSION="${PROJECT_VERSION}")
+
+set(CODEGEN_DIR ${CMAKE_CURRENT_BINARY_DIR}/codegen)
+file(READ example_config.toml EXAMPLE_CONFIG)
+configure_file(src/example_config.hpp.in ${CODEGEN_DIR}/example_config.hpp @ONLY)
+set_property(
+	DIRECTORY
+	APPEND
+	PROPERTY CMAKE_CONFIGURE_DEPENDS src/example_config.hpp.in example_config.toml
+)
+target_include_directories(svn-lfs-export_exe PRIVATE ${CODEGEN_DIR})
+
 include(CTest)
 if(BUILD_TESTING)
 	add_subdirectory(test)

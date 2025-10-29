@@ -1,0 +1,1 @@
+const char* kExampleConfig = R"(@EXAMPLE_CONFIG@)";

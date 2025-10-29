@@ -39,15 +39,15 @@ struct Config
 	Config() :
 		strictMode(kDefaultStrictMode),
 		timezone(kDefaultTimeZone),
-		commitMessage(kDefaultCommitMessage) {}
+		commitMessage(kDefaultCommitMessage)
+	{
+	}
 
 	static std::expected<Config, std::string> FromFile(const std::string_view&);
 
 	std::expected<void, std::string> IsValid() const;
 
 	bool strictMode;
-	std::optional<long int> minRevision;
-	std::optional<long int> maxRevision;
 	std::string svnRepo;
 	std::optional<std::string> domain;
 	std::string timezone;

@@ -38,8 +38,6 @@ std::expected<Config, std::string> Config::Parse(const toml::table& root)
 	Config result;
 
 	// Optional or default values
-	result.minRevision = root["min_revision"].value<long int>();
-	result.maxRevision = root["max_revision"].value<long int>();
 	result.domain = root["domain"].value<std::string>();
 	result.strictMode = root["strict_mode"].value_or(kDefaultStrictMode);
 	result.timezone = root["time_zone"].value_or(kDefaultTimeZone);
