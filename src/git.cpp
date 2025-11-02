@@ -73,9 +73,10 @@ std::string Git::GetSha256(const std::string_view input)
 	return result;
 }
 
-std::string Git::WriteLFSFile(const std::string_view input, const std::filesystem::path& root)
+std::string Git::WriteLFSFile(const std::string_view input, const std::string_view repo)
 {
 	std::string hash = GetSha256(input);
+	std::filesystem::path root = mWriter.GetLFSRoot(repo);
 	std::filesystem::path path =
 		root / "lfs" / "objects" / hash.substr(0, 2) / hash.substr(2, 2) / hash;
 
@@ -213,9 +214,7 @@ std::optional<Git::Mapping> Git::MapPath(const long int rev, const std::string_v
 	return std::nullopt;
 }
 
-std::expected<void, std::string> Git::WriteCommit(
-	const svn::Revision& rev, std::ostream& output, const std::filesystem::path& lfsRoot
-)
+std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 {
 	// 1. For each revision, get revision properties
 	//     - Author
@@ -281,6 +280,8 @@ std::expected<void, std::string> Git::WriteCommit(
 	// FIXME: For loop followed by triple nested for loop feels like a bad way to do this.
 	for (const auto& [repo, branchMap] : repoBranchMappings)
 	{
+		std::ostream& output = mWriter.GetFastImportStream(repo);
+
 		for (const auto& [branch, fileList] : branchMap)
 		{
 			std::string ref = fmt::format("refs/heads/{}", branch);
@@ -305,7 +306,7 @@ std::expected<void, std::string> Git::WriteCommit(
 
 					if (destination.lfs)
 					{
-						lfsPointer = WriteLFSFile(svnFile, lfsRoot);
+						lfsPointer = WriteLFSFile(svnFile, destination.repo);
 						outputFile = lfsPointer;
 					}
 

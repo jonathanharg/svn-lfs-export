@@ -1,11 +1,10 @@
 #pragma once
 #include "config.hpp"
 #include "svn.hpp"
+#include "writer.hpp"
 
 #include <expected>
-#include <filesystem>
 #include <optional>
-#include <ostream>
 #include <string>
 #include <string_view>
 
@@ -21,8 +20,9 @@ public:
 		bool lfs = false;
 	};
 
-	Git(const Config& config) :
-		mConfig(config) {};
+	Git(const Config& config, IWriter& writer) :
+		mConfig(config),
+		mWriter(writer) {};
 
 	std::string GetAuthor(const std::string& username);
 
@@ -32,16 +32,15 @@ public:
 
 	std::string GetSha256(const std::string_view inputStr);
 
-	std::string WriteLFSFile(const std::string_view input, const std::filesystem::path& root);
+	std::string WriteLFSFile(const std::string_view input, const std::string_view repo);
 
 	std::string GetGitAttributesFile();
 
 	std::optional<Mapping> MapPath(const long int rev, const std::string_view& path);
 
-	std::expected<void, std::string> WriteCommit(
-		const svn::Revision& rev, std::ostream& output, const std::filesystem::path& lfsRoot
-	);
+	std::expected<void, std::string> WriteCommit(const svn::Revision& rev);
 
 private:
 	const Config& mConfig;
+	IWriter& mWriter;
 };

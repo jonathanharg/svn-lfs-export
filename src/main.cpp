@@ -3,6 +3,7 @@
 #include "git.hpp"
 #include "svn.hpp"
 #include "utils.hpp"
+#include "writer.hpp"
 
 #include <apr_general.h>
 #include <argparse/argparse.hpp>
@@ -13,8 +14,6 @@
 
 #include <cstdlib>
 #include <exception>
-#include <filesystem>
-#include <fstream>
 #include <iostream>
 #include <string>
 
@@ -61,7 +60,7 @@ int main(int argc, char* argv[])
 	{
 		std::cerr << err.what() << '\n';
 		std::cerr << program;
-		std::exit(1);
+		return EXIT_FAILURE;
 	}
 
 	if (program["--example-config"] == true)
@@ -112,15 +111,15 @@ int main(int argc, char* argv[])
 		return EXIT_FAILURE;
 	}
 
-	Git git(config);
+	StdOutWriter writer;
+	Git git(config, writer);
 
 	LogInfo("Running from r{} to r{}", startRev, stopRev);
-	std::ofstream filestream{"output.txt"};
 
 	for (long int revNum = startRev; revNum <= stopRev; revNum++)
 	{
 		svn::Revision rev = repository.GetRevision(revNum);
-		auto result = git.WriteCommit(rev, filestream, std::filesystem::current_path());
+		auto result = git.WriteCommit(rev);
 
 		if (revNum % 500 == 0)
 		{

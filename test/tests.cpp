@@ -1,12 +1,14 @@
 #include "config.hpp"
 #include "git.hpp"
+#include "writer.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
 TEST_CASE("SVN usernames map to git", "[git]")
 {
 	Config config;
-	Git git(config);
+	StdOutWriter writer;
+	Git git(config, writer);
 	CHECK(git.GetAuthor("") == "Unknown User <unknown@localhost>");
 
 	config.domain = "mycorp.com";
@@ -20,22 +22,21 @@ TEST_CASE("SVN usernames map to git", "[git]")
 TEST_CASE("SVN log maps to commit message", "[git]")
 {
 	Config config;
-	Git git(config);
+	StdOutWriter writer;
+	Git git(config, writer);
 
 	config.commitMessage = "my message";
 	CHECK(git.GetCommitMessage("svn log", "svn usr", 123) == "my message");
 
 	config.commitMessage = "fmt usr:{usr} rev:{rev} log:{log}";
-	CHECK(
-		git.GetCommitMessage("svn log", "svn usr", 123) ==
-		"fmt usr:svn usr rev:123 log:svn log"
-	);
+	CHECK(git.GetCommitMessage("svn log", "svn usr", 123) == "fmt usr:svn usr rev:123 log:svn log");
 }
 
 TEST_CASE("SVN time maps to git time", "[git]")
 {
 	Config config;
-	Git git(config);
+	StdOutWriter writer;
+	Git git(config, writer);
 
 	CHECK(git.GetTime("2005-02-20T01:52:55.851101Z") == "1108864375 +0000");
 
@@ -64,7 +65,8 @@ TEST_CASE("SVN time maps to git time", "[git]")
 TEST_CASE("sha256 works")
 {
 	Config config;
-	Git git(config);
+	StdOutWriter writer;
+	Git git(config, writer);
 	const char* kHelloWorldHash =
 		"dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f";
 	CHECK(git.GetSha256("Hello, World!") == kHelloWorldHash);
