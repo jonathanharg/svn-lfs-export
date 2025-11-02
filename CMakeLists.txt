@@ -12,6 +12,7 @@ find_package(APR REQUIRED)
 find_package(Subversion REQUIRED)
 
 find_package(argparse CONFIG REQUIRED)
+find_package(Boost REQUIRED COMPONENTS process)
 find_package(date CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(libgit2 CONFIG REQUIRED)
@@ -22,10 +23,19 @@ find_package(tomlplusplus CONFIG REQUIRED)
 include(cmake/warnings.cmake)
 
 # Library
-add_library(svn-lfs-export_lib OBJECT src/config.cpp src/git.cpp src/svn.cpp)
+add_library(
+	svn-lfs-export_lib OBJECT
+	src/config.cpp
+	src/git.cpp
+	src/svn.cpp
+	src/writers/stdout_writer.cpp
+	src/writers/multi_repo_writer.cpp
+	src/writers/debug_writer.cpp
+)
 target_link_libraries(
 	svn-lfs-export_lib
 	PUBLIC APR::APR
+		   Boost::process
 		   OpenSSL::Crypto
 		   fmt::fmt
 		   libgit2::libgit2package

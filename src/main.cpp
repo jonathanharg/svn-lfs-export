@@ -111,9 +111,11 @@ int main(int argc, char* argv[])
 		return EXIT_FAILURE;
 	}
 
-	StdOutWriter writer;
+	stdoutWriter writer;
+	// MultiRepoWriter writer;
 	Git git(config, writer);
 
+	// TODO: Replace when not using stdoutWriter
 	LogInfo("Running from r{} to r{}", startRev, stopRev);
 
 	for (long int revNum = startRev; revNum <= stopRev; revNum++)
@@ -124,6 +126,7 @@ int main(int argc, char* argv[])
 		if (revNum % 500 == 0)
 		{
 			float percent = 100.0F * (static_cast<float>(revNum) / static_cast<float>(stopRev));
+			// TODO: Replace when not using stdoutWriter
 			LogInfo("Converting {}% [{}/{}]", percent, revNum, stopRev);
 			LogError("Converting {}% [{}/{}]", percent, revNum, stopRev);
 		}

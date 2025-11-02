@@ -7,7 +7,7 @@
 TEST_CASE("SVN usernames map to git", "[git]")
 {
 	Config config;
-	StdOutWriter writer;
+	stdoutWriter writer;
 	Git git(config, writer);
 	CHECK(git.GetAuthor("") == "Unknown User <unknown@localhost>");
 
@@ -22,7 +22,7 @@ TEST_CASE("SVN usernames map to git", "[git]")
 TEST_CASE("SVN log maps to commit message", "[git]")
 {
 	Config config;
-	StdOutWriter writer;
+	stdoutWriter writer;
 	Git git(config, writer);
 
 	config.commitMessage = "my message";
@@ -35,7 +35,7 @@ TEST_CASE("SVN log maps to commit message", "[git]")
 TEST_CASE("SVN time maps to git time", "[git]")
 {
 	Config config;
-	StdOutWriter writer;
+	stdoutWriter writer;
 	Git git(config, writer);
 
 	CHECK(git.GetTime("2005-02-20T01:52:55.851101Z") == "1108864375 +0000");
@@ -65,7 +65,7 @@ TEST_CASE("SVN time maps to git time", "[git]")
 TEST_CASE("sha256 works")
 {
 	Config config;
-	StdOutWriter writer;
+	stdoutWriter writer;
 	Git git(config, writer);
 	const char* kHelloWorldHash =
 		"dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f";

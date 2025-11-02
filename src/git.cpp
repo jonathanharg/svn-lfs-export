@@ -18,8 +18,8 @@
 #include <expected>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <optional>
-#include <ostream>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -280,15 +280,32 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 	// FIXME: For loop followed by triple nested for loop feels like a bad way to do this.
 	for (const auto& [repo, branchMap] : repoBranchMappings)
 	{
-		std::ostream& output = mWriter.GetFastImportStream(repo);
-
 		for (const auto& [branch, fileList] : branchMap)
 		{
-			std::string ref = fmt::format("refs/heads/{}", branch);
-			fmt::println(output, "commit {}", ref);
-			fmt::println(output, "original-oid r{}", rev.GetNumber());
-			fmt::println(output, "committer {} {}", committer, time);
-			fmt::println(output, "data {}\n{}", message.length(), message);
+			std::string output;
+			auto outputIt = std::back_inserter(output);
+			// TODO: output.reserve() based on some heuristic
+
+			fmt::format_to(
+				outputIt,
+				"commit refs/heads/{}\n"
+				"original-oid r{}\n"
+				"committer {} {}\n"
+				"data {}\n"
+				"{}\n",
+				branch, rev.GetNumber(), committer, time, message.length(), message
+			);
+
+			// FIXME: Temp continuation hack until branches are properly supported
+			static bool first = true;
+			if (first)
+			{
+				first = false;
+				if (mWriter.DoesBranchAlreadyExistOnDisk(repo, branch))
+				{
+					fmt::format_to(outputIt, "from refs/heads/{}^0\n", branch);
+				}
+			}
 
 			for (const auto* file : fileList)
 			{
@@ -296,7 +313,7 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 
 				if (file->changeType == svn::File::Change::Delete)
 				{
-					fmt::println(output, "D {}", destination.path);
+					fmt::format_to(outputIt, "D {}\n", destination.path);
 				}
 				else if (!file->isDirectory)
 				{
@@ -310,10 +327,14 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 						outputFile = lfsPointer;
 					}
 
-					fmt::println(
-						output, "M {} inline {}", static_cast<int>(Mode::Normal), destination.path
+					fmt::format_to(
+						outputIt,
+						"M {} inline {}\n"
+						"data {}\n"
+						"{}\n",
+						static_cast<int>(Mode::Normal), destination.path, outputFile.size(),
+						outputFile
 					);
-					fmt::println(output, "data {}\n{}", outputFile.size(), outputFile);
 				}
 			}
 			std::string attributes = GetGitAttributesFile();
@@ -321,9 +342,15 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 			{
 				// We don't need to be writing this for every commit, just the first to each repo
 				// Oh well, it's easier to do it this way for now
-				fmt::println(output, "M {} inline .gitattributes", static_cast<int>(Mode::Normal));
-				fmt::println(output, "data {}\n{}", attributes.size(), attributes);
+				fmt::format_to(
+					outputIt,
+					"M {} inline .gitattributes\n"
+					"data {}\n"
+					"{}\n",
+					static_cast<int>(Mode::Normal), attributes.size(), attributes
+				);
 			}
+			mWriter.WriteToFastImport(repo, output);
 		}
 	}
 
