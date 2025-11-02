@@ -109,7 +109,7 @@ std::string Git::GetTime(const std::string& svnTime)
 
 	std::istringstream dateStream{svnTime};
 	std::chrono::sys_time<std::chrono::seconds> utcTime;
-	dateStream >> date::parse("%FT%T", utcTime);
+	date::from_stream(dateStream, "%FT%T", utcTime);
 
 	auto unixEpoch = utcTime.time_since_epoch().count();
 
