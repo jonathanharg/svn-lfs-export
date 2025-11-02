@@ -63,5 +63,5 @@ private:
 	static constexpr bool kDefaultStrictMode = false;
 	static constexpr std::string_view kDefaultTimeZone = "Etc/UTC";
 	static constexpr std::string_view kDefaultCommitMessage =
-		"{log}\n\nThis commit was converted from revision r{rev} by svn-lfs-export.";
+		"{log}\n\nThis commit was converted from r{rev} by svn-lfs-export.";
 };

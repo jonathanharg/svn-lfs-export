@@ -19,7 +19,7 @@ LFS = [
 # commit_message = """
 # {log}
 #
-# This commit was converted from revision r{rev} by svn-lfs-export.
+# This commit was converted from r{rev} by svn-lfs-export.
 # """
 
 # Require all files in all commits to match a provided rule. If a file in a commit does
