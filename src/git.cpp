@@ -320,6 +320,7 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 					std::string_view svnFile{file->buffer.get(), file->size};
 					std::string_view outputFile = svnFile;
 					std::string lfsPointer;
+					Mode mode = file->isExecutable ? Mode::Executable : Mode::Normal;
 
 					if (destination.lfs)
 					{
@@ -332,8 +333,7 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 						"M {} inline {}\n"
 						"data {}\n"
 						"{}\n",
-						static_cast<int>(Mode::Normal), destination.path, outputFile.size(),
-						outputFile
+						static_cast<int>(mode), destination.path, outputFile.size(), outputFile
 					);
 				}
 			}

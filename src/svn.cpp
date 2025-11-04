@@ -1,4 +1,5 @@
 #include "svn.hpp"
+#include "utils.hpp"
 
 #include <apr_hash.h>
 #include <svn_fs.h>
@@ -14,6 +15,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 
 namespace svn
 {
@@ -21,10 +23,52 @@ namespace svn
 File::File(svn_fs_path_change3_t* change, svn_fs_root_t* revisionFs) :
 	path(change->path.data, change->path.len),
 	isDirectory(change->node_kind == svn_node_dir),
+	isExecutable(false),
 	changeType(static_cast<File::Change>(change->change_kind))
 {
-	// TODO: Read all properties and notify on anything important that may get lost
-	// svn_fs_node_proplist
+	[[maybe_unused]] const svn_error_t* err = nullptr;
+	svn::Pool propsPool;
+
+	apr_hash_t* props = nullptr;
+	err = svn_fs_node_proplist(&props, revisionFs, change->path.data, propsPool);
+
+	if (props)
+	{
+		for (apr_hash_index_t* hi = apr_hash_first(propsPool, props); hi; hi = apr_hash_next(hi))
+		{
+			const void* key = nullptr;
+			void* val = nullptr;
+			apr_hash_this(hi, &key, nullptr, &val);
+
+			std::string_view propName{static_cast<const char*>(key)};
+			auto* propValue = static_cast<svn_string_t*>(val);
+
+			if (propName == "svn:executable")
+			{
+				isExecutable = true;
+				continue;
+			}
+			else if (propName == "svn:externals")
+			{
+				LogError(
+					"Warning: svn external {:?} in {} is not supported in git", propValue->data,
+					change->path.data
+				);
+				continue;
+			}
+			else if (propName == "svn:mergeinfo" || propName == "svn:keywords" ||
+					 propName == "svn:eol-style" || propName == "svn:mime-type" ||
+					 propName == "svn:ignore")
+			{
+				continue;
+			}
+
+			LogError(
+				"Warning: Ignoring prop {} = {:?} ({})", propName, propValue->data,
+				change->path.data
+			);
+		}
+	}
 
 	assert(change->node_kind == svn_node_file || change->node_kind == svn_node_dir);
 
@@ -37,7 +81,6 @@ File::File(svn_fs_path_change3_t* change, svn_fs_root_t* revisionFs) :
 
 	if (!isDirectory && changeType != File::Change::Delete)
 	{
-		[[maybe_unused]] const svn_error_t* err = nullptr;
 		svn::Pool filePool;
 
 		svn_filesize_t signedFileSize = 0;

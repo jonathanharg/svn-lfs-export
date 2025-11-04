@@ -56,6 +56,7 @@ struct File
 
 	std::string path;
 	bool isDirectory;
+	bool isExecutable;
 	Change changeType;
 	size_t size = 0;
 	std::unique_ptr<char[]> buffer;
