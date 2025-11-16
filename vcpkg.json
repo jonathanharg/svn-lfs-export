@@ -1,6 +1,7 @@
 {
   "dependencies": [
     "argparse",
+    "boost-process",
     "catch2",
     "date",
     "fmt",
@@ -8,7 +9,7 @@
     "openssl",
     "re2",
     "tomlplusplus",
-    "boost-process"
+    "tracy"
   ],
   "overrides": [
     {

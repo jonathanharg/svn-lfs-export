@@ -5,13 +5,12 @@
 #include <boost/process.hpp>
 #include <boost/system.hpp>
 #include <git2.h>
+#include <tracy/Tracy.hpp>
 
-#include <algorithm>
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
-#include <iostream>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -30,6 +29,8 @@ FastImportProcess::FastImportProcess(std::filesystem::path repoPath) :
 
 void MultiRepoWriter::WriteToFastImport(std::string_view repo, std::string_view content)
 {
+	ZoneScoped;
+
 	std::string repoStr{repo};
 	if (!mRunningProcesses.contains(repoStr))
 	{
@@ -40,7 +41,10 @@ void MultiRepoWriter::WriteToFastImport(std::string_view repo, std::string_view 
 		mRunningProcesses.emplace(repoStr, std::filesystem::current_path() / repo);
 	}
 
-	mRunningProcesses.at(repoStr).pipe.write_some(asio::buffer(content));
+	{
+		ZoneScopedN("Pipe write");
+		mRunningProcesses.at(repoStr).pipe.write_some(asio::buffer(content));
+	}
 }
 
 std::filesystem::path MultiRepoWriter::GetLFSRoot(std::string_view repo)
@@ -50,7 +54,8 @@ std::filesystem::path MultiRepoWriter::GetLFSRoot(std::string_view repo)
 
 bool MultiRepoWriter::DoesBranchAlreadyExistOnDisk(std::string_view repo, std::string_view branch)
 {
-	// This is slow embarrassingly slow
+	ZoneScoped;
+
 	if (!DoesRepoExist(repo))
 	{
 		return false;
@@ -89,6 +94,8 @@ bool MultiRepoWriter::DoesBranchAlreadyExistOnDisk(std::string_view repo, std::s
 
 bool MultiRepoWriter::DoesRepoExist(std::string_view repo)
 {
+	ZoneScoped;
+
 	std::filesystem::path path = std::filesystem::current_path() / repo;
 	int err = git_repository_open(nullptr, path.c_str());
 
@@ -111,6 +118,8 @@ bool MultiRepoWriter::DoesRepoExist(std::string_view repo)
 
 void MultiRepoWriter::CreateRepo(std::string_view repo)
 {
+	ZoneScoped;
+
 	git_repository* repoPtr = nullptr;
 	std::filesystem::path path = std::filesystem::current_path() / repo;
 

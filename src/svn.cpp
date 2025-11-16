@@ -9,6 +9,7 @@
 #include <svn_string.h>
 #include <svn_types.h>
 #include <svn_types_impl.h>
+#include <tracy/Tracy.hpp>
 
 #include <cassert>
 #include <cstddef>
@@ -27,6 +28,7 @@ File::File(svn_fs_path_change3_t* change, svn_fs_root_t* revisionFs) :
 	changeType(static_cast<File::Change>(change->change_kind)),
 	mRevisionFs(revisionFs)
 {
+	ZoneScoped;
 	[[maybe_unused]] const svn_error_t* err = nullptr;
 	svn::Pool propsPool;
 
@@ -95,6 +97,8 @@ File::File(svn_fs_path_change3_t* change, svn_fs_root_t* revisionFs) :
 
 std::unique_ptr<char[]> File::GetContents() const
 {
+	ZoneScoped;
+
 	if (size == 0)
 	{
 		return nullptr;
@@ -118,6 +122,8 @@ std::unique_ptr<char[]> File::GetContents() const
 Revision::Revision(svn_fs_t* repositoryFs, long int revision) :
 	mRevision(revision)
 {
+	ZoneScoped;
+
 	svn_fs_root_t* revisionFs = nullptr;
 
 	[[maybe_unused]]
@@ -130,6 +136,8 @@ Revision::Revision(svn_fs_t* repositoryFs, long int revision) :
 
 std::optional<std::string> GetRevisionProp(apr_hash_t* hash, const char* prop)
 {
+	ZoneScoped;
+
 	auto* value = static_cast<svn_string_t*>(apr_hash_get(hash, prop, APR_HASH_KEY_STRING));
 	if (value)
 	{
@@ -140,6 +148,8 @@ std::optional<std::string> GetRevisionProp(apr_hash_t* hash, const char* prop)
 
 void Revision::SetupProperties(svn_fs_t* repositoryFs)
 {
+	ZoneScoped;
+
 	Pool resultPool;
 	Pool scratchPool;
 
@@ -160,6 +170,8 @@ void Revision::SetupProperties(svn_fs_t* repositoryFs)
 
 void Revision::SetupFiles(svn_fs_root_t* revisionFs)
 {
+	ZoneScoped;
+
 	Pool pathsPool;
 	Pool scratchPool;
 	[[maybe_unused]] const svn_error_t* err = nullptr;
@@ -183,6 +195,8 @@ void Revision::SetupFiles(svn_fs_root_t* revisionFs)
 
 Repository::Repository(const std::string& path)
 {
+	ZoneScoped;
+
 	Pool scratchPool;
 
 	[[maybe_unused]]
@@ -194,6 +208,8 @@ Repository::Repository(const std::string& path)
 
 long int Repository::GetYoungestRevision()
 {
+	ZoneScoped;
+
 	Pool scratchPool;
 	long int youngestRev = 1;
 
