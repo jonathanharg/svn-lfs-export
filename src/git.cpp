@@ -209,6 +209,13 @@ std::optional<Git::Mapping> Git::MapPath(const long int rev, const std::string_v
 			result.lfs = res == 1;
 		}
 
+		// fast-import paths can't start with '/' and removing it automatically means
+		// less regex shenanigans for the user
+		if (result.path.starts_with('/'))
+		{
+			result.path.erase(0, 1);
+		}
+
 		return result;
 	}
 	return std::nullopt;
