@@ -42,8 +42,8 @@ void MultiRepoWriter::WriteToFastImport(std::string_view repo, std::string_view 
 	}
 
 	{
-		ZoneScopedN("Pipe write");
-		mRunningProcesses.at(repoStr).pipe.write_some(asio::buffer(content));
+		ZoneScopedN("subprocess write");
+		asio::write(mRunningProcesses.at(repoStr).pipe, asio::buffer(content));
 	}
 }
 
