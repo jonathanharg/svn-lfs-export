@@ -13,7 +13,9 @@
 #include <re2/re2.h>
 #include <tracy/Tracy.hpp>
 
+#include <algorithm>
 #include <array>
+#include <cassert>
 #include <chrono>
 #include <cstddef>
 #include <expected>
@@ -237,43 +239,36 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 {
 	ZoneScoped;
 
-	// 1. For each revision, get revision properties
-	//     - Author
-	//     - Date
-	//     - Log message
-	// 2. Gather all changes in a revision, grouping by output repo & branch
-	//    storing metadata and a lazy file stream.
-	//     - Output path -> output repo, branch, path & LFS
-	//     - Change type added/removed/modified
-	//     - Copy from?
-	//     - Merge info?
-	//     - File size
-	//     - File data stream
-	// 3. For each repo & branch, commit files.
+	const std::string committer = GetAuthor(rev.GetAuthor());
+	const std::string message = GetCommitMessage(rev.GetLog(), rev.GetAuthor(), rev.GetNumber());
+	const std::string time = GetTime(rev.GetDate());
 
-	// THINK ABOUT
-	//  - Failure / cancelling mid process
-	//  - Saving marks
-	//  - Continuing from where you left off
-	//  - Branch creation, working out "from" commit
-	//  - Merging?
-
-	std::string committer = GetAuthor(rev.GetAuthor());
-	std::string message = GetCommitMessage(rev.GetLog(), rev.GetAuthor(), rev.GetNumber());
-	std::string time = GetTime(rev.GetDate());
-
-	std::unordered_map<const svn::File*, Mapping> fileMappings;
-
-	using Repo = std::string;
-	using Branch = std::string;
-	using FileList = std::vector<const svn::File*>;
-	std::unordered_map<Repo, std::unordered_map<Branch, FileList>> repoBranchMappings;
+	struct MappedFile
+	{
+		const svn::File* svn;
+		Mapping git;
+		auto operator<=>(const MappedFile& other) const
+		{
+			auto cmp = git.repo <=> other.git.repo;
+			if (cmp != 0)
+				return cmp;
+			return git.branch <=> other.git.branch;
+		}
+	};
+	std::vector<MappedFile> mappings;
 
 	for (const auto& file : rev.GetFiles())
 	{
 		std::optional<Mapping> destination = MapPath(rev.GetNumber(), file.path);
 
-		if (!destination)
+		if (destination)
+		{
+			if (!destination->skip)
+			{
+				mappings.emplace_back(&file, *destination);
+			}
+		}
+		else
 		{
 			if (mConfig.strictMode)
 			{
@@ -284,29 +279,31 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 					)
 				);
 			}
-			else
-			{
-				continue;
-			}
 		}
-
-		if (destination->skip)
-		{
-			continue;
-		}
-		fileMappings[&file] = *destination;
-		repoBranchMappings[destination->repo][destination->branch].push_back(&file);
 	}
 
-	// FIXME: For loop followed by triple nested for loop feels like a bad way to do this.
-	for (const auto& [repo, branchMap] : repoBranchMappings)
-	{
-		for (const auto& [branch, fileList] : branchMap)
-		{
-			std::string output;
-			auto outputIt = std::back_inserter(output);
-			// TODO: output.reserve() based on some heuristic
+	std::sort(mappings.begin(), mappings.end());
 
+	std::string lastRepo;
+	std::string lastBranch;
+
+	for (const auto& file : mappings)
+	{
+		const std::string& repo = file.git.repo;
+		const std::string& branch = file.git.branch;
+
+		assert(!repo.empty());
+		assert(!branch.empty());
+
+		std::string output;
+		auto outputIt = std::back_inserter(output);
+		// TODO: output.reserve() based on some heuristic
+
+		if (repo != lastRepo || branch != lastBranch)
+		{
+			// We've moved onto a new branch/repository, start a new commit!
+			lastRepo = repo;
+			lastBranch = branch;
 			fmt::format_to(
 				outputIt,
 				"commit refs/heads/{}\n"
@@ -316,7 +313,6 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 				"{}\n",
 				branch, rev.GetNumber(), committer, time, message.length(), message
 			);
-
 			// FIXME: Temp continuation hack until branches are properly supported
 			static bool first = true;
 			if (first)
@@ -328,37 +324,6 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 				}
 			}
 
-			for (const auto* file : fileList)
-			{
-				auto destination = fileMappings[file];
-
-				if (file->changeType == svn::File::Change::Delete)
-				{
-					fmt::format_to(outputIt, "D {}\n", destination.path);
-				}
-				else if (!file->isDirectory)
-				{
-					auto fileContents = file->GetContents();
-					std::string_view svnFile{fileContents.get(), file->size};
-					std::string_view outputFile = svnFile;
-					std::string lfsPointer;
-					Mode mode = file->isExecutable ? Mode::Executable : Mode::Normal;
-
-					if (destination.lfs)
-					{
-						lfsPointer = WriteLFSFile(svnFile, destination.repo);
-						outputFile = lfsPointer;
-					}
-
-					fmt::format_to(
-						outputIt,
-						"M {} inline {}\n"
-						"data {}\n"
-						"{}\n",
-						static_cast<int>(mode), destination.path, outputFile.size(), outputFile
-					);
-				}
-			}
 			std::string attributes = GetGitAttributesFile();
 			if (attributes.length() > 0)
 			{
@@ -372,8 +337,35 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 					static_cast<int>(Mode::Normal), attributes.size(), attributes
 				);
 			}
-			mWriter.WriteToFastImport(repo, output);
 		}
+
+		if (file.svn->changeType == svn::File::Change::Delete)
+		{
+			fmt::format_to(outputIt, "D {}\n", file.git.path);
+		}
+		else if (!file.svn->isDirectory)
+		{
+			auto fileContents = file.svn->GetContents();
+			std::string_view svnFile{fileContents.get(), file.svn->size};
+			std::string_view outputFile = svnFile;
+			std::string lfsPointer;
+			Mode mode = file.svn->isExecutable ? Mode::Executable : Mode::Normal;
+
+			if (file.git.lfs)
+			{
+				lfsPointer = WriteLFSFile(svnFile, file.git.repo);
+				outputFile = lfsPointer;
+			}
+
+			fmt::format_to(
+				outputIt,
+				"M {} inline {}\n"
+				"data {}\n"
+				"{}\n",
+				static_cast<int>(mode), file.git.path, outputFile.size(), outputFile
+			);
+		}
+		mWriter.WriteToFastImport(repo, output);
 	}
 
 	return {};
