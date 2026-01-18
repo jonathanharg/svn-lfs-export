@@ -270,7 +270,7 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 		}
 		else
 		{
-			if (mConfig.strictMode)
+			if (mConfig.strictMode && !file.isDirectory)
 			{
 				return std::unexpected(
 					fmt::format(
