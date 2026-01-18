@@ -287,6 +287,11 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 	std::string lastRepo;
 	std::string lastBranch;
 
+	// One SVN revision mapps to multiple different git commits
+	const bool isMultiCommit =
+		!mappings.empty() && (mappings.front().git.repo != mappings.back().git.repo ||
+							  mappings.front().git.branch != mappings.back().git.branch);
+
 	for (const auto& file : mappings)
 	{
 		const std::string& repo = file.git.repo;
@@ -304,14 +309,19 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 			// We've moved onto a new branch/repository, start a new commit!
 			lastRepo = repo;
 			lastBranch = branch;
+
+			const std::string mark =
+				!isMultiCommit ? fmt::format("mark :{}\n", rev.GetNumber()) : "";
+
 			fmt::format_to(
 				outputIt,
 				"commit refs/heads/{}\n"
+				"{}"
 				"original-oid r{}\n"
 				"committer {} {}\n"
 				"data {}\n"
 				"{}\n",
-				branch, rev.GetNumber(), committer, time, message.length(), message
+				branch, mark, rev.GetNumber(), committer, time, message.length(), message
 			);
 			// FIXME: Temp continuation hack until branches are properly supported
 			static bool first = true;
