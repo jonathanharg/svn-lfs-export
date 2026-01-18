@@ -42,6 +42,12 @@ jsmith = 'John Smith <jsmith@yourcompany.com>'
 # The rules to apply to all files in all commits. The first matched rule (from first to
 # last) will apply, all subsequent rules will be ignored.
 
+# The fast-import 'from' of the first commit to a given branch. See
+# https://git-scm.com/docs/git-fast-import#_from use mark references
+# to refer to unambiguous svn revisions (e.g. ":1234" for r1234)
+[branch_origin]
+"feature_branch" = ":1234"
+
 [[rule]]
 
 # REQUIRED: Regex to match SVN path, with standard regex captures.

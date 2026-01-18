@@ -56,6 +56,7 @@ struct Config
 	std::vector<std::string> lfsRuleStrs;
 	pathspec_ptr lfsPathspec;
 	std::unordered_map<std::string, std::string> identityMap;
+	std::unordered_map<std::string, std::string> branchMap;
 
 private:
 	static std::expected<Config, std::string> Parse(const toml::table& root);

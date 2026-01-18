@@ -71,6 +71,24 @@ std::expected<Config, std::string> Config::Parse(const toml::table& root)
 		}
 	}
 
+	const toml::table* branchTable = root["branch_origin"].as_table();
+
+	if (branchTable)
+	{
+		for (auto&& [key, value] : *branchTable)
+		{
+			const auto fromValue = value.value<std::string>();
+			if (!fromValue)
+			{
+				return std::unexpected(
+					fmt::format("ERROR: Branch mapping for {:?} is invalid.", key.str())
+				);
+			}
+			// TODO: Add validators
+			result.branchMap[std::string(key.str())] = *fromValue;
+		}
+	}
+
 	const toml::array* lfsConfig = root["LFS"].as_array();
 
 	if (lfsConfig)

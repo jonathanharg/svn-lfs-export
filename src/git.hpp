@@ -7,6 +7,8 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_map>
+#include <unordered_set>
 
 class Git
 {
@@ -43,4 +45,5 @@ public:
 private:
 	const Config& mConfig;
 	IWriter& mWriter;
+	std::unordered_map<std::string, std::unordered_set<std::string>> mSeenRepoBranches;
 };

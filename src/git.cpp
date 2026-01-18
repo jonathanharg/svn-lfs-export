@@ -323,16 +323,30 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 				"{}\n",
 				branch, mark, rev.GetNumber(), committer, time, message.length(), message
 			);
-			// FIXME: Temp continuation hack until branches are properly supported
-			static bool first = true;
-			if (first)
+
+			if (mSeenRepoBranches.empty() && true /* Git repo is empty */)
 			{
-				first = false;
-				if (mWriter.DoesBranchAlreadyExistOnDisk(repo, branch))
+				// Try load the branch from disk, or create new commit with no ancestor
+			}
+			else if (!mSeenRepoBranches.empty() && (!mSeenRepoBranches.contains(repo) ||
+													!mSeenRepoBranches.at(repo).contains(branch)))
+			{
+				if (mConfig.branchMap.contains(branch))
 				{
-					fmt::format_to(outputIt, "from refs/heads/{}^0\n", branch);
+					std::string fromLocation = mConfig.branchMap.at(branch);
+					fmt::format_to(outputIt, "from {}\n", fromLocation);
+				}
+				else
+				{
+					return std::unexpected(
+						fmt::format(
+							"ERROR: Unknown branch origin for r{} at {:?} (for git branch {}/{}). Provide a origin in the [branch_origin] section of your config.toml file.",
+							rev.GetNumber(), file.svn->path, repo, branch
+						)
+					);
 				}
 			}
+			mSeenRepoBranches[repo].insert(branch);
 
 			std::string attributes = GetGitAttributesFile();
 			if (attributes.length() > 0)
