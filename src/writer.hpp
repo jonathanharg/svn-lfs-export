@@ -26,6 +26,7 @@ public:
 	virtual void WriteToFastImport(std::string_view repo, std::string_view content) = 0;
 	virtual std::filesystem::path GetLFSRoot(std::string_view repo) = 0;
 	virtual bool DoesBranchAlreadyExistOnDisk(std::string_view repo, std::string_view branch) = 0;
+	virtual bool DoesRepoExist(std::string_view) { return true; };
 };
 
 class stdoutWriter final : public IWriter
@@ -75,9 +76,9 @@ public:
 	void WriteToFastImport(std::string_view repo, std::string_view content) override;
 	std::filesystem::path GetLFSRoot(std::string_view repo) override;
 	bool DoesBranchAlreadyExistOnDisk(std::string_view repo, std::string_view branch) override;
+	bool DoesRepoExist(std::string_view repo) override;
 
 private:
-	bool DoesRepoExist(std::string_view repo);
 	void CreateRepo(std::string_view repo);
 	void StartProcess(std::string_view repo);
 

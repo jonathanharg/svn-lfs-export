@@ -38,6 +38,8 @@ public:
 
 	std::string GetGitAttributesFile();
 
+	std::optional<std::string> GetBranchOrigin(const std::string& repo, const std::string& branch);
+
 	std::optional<Mapping> MapPath(const long int rev, const std::string_view& path);
 
 	std::expected<void, std::string> WriteCommit(const svn::Revision& rev);

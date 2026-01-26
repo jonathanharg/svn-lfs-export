@@ -23,7 +23,10 @@ namespace asio = boost::asio;
 FastImportProcess::FastImportProcess(std::filesystem::path repoPath) :
 	pipe(context),
 	process(
-		context, sGitExe, {"fast-import", "--export-marks=marks"}, process::process_start_dir{std::move(repoPath)},
+		context, sGitExe,
+		{"fast-import", "--export-marks=.git/svn_lfs_export_marks",
+		 "--import-marks-if-exists=.git/svn_lfs_export_marks"},
+		process::process_start_dir{std::move(repoPath)},
 		process::process_stdio{.in = pipe, .out = stdout, .err = stdout}
 	) {};
 

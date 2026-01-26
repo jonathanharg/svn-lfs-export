@@ -127,6 +127,40 @@ std::string Git::GetTime(const std::string& svnTime)
 	return fmt::format("{} {}", unixEpoch, formattedOffset);
 }
 
+std::optional<std::string> Git::GetBranchOrigin(const std::string& repo, const std::string& branch)
+{
+	const bool seenRepo = mSeenRepoBranches.contains(repo);
+	const bool seenBranch = seenRepo && mSeenRepoBranches.at(repo).contains(branch);
+
+	if (seenBranch)
+	{
+		// Branch already exists in fast-import memory
+		return std::string("");
+	}
+
+	if (!seenRepo && !mWriter.DoesRepoExist(repo))
+	{
+		// Omit the `from`, this is the first commit to a new repository
+		// so create a commit with no ancestor.
+		return std::string("");
+	}
+
+	if (mWriter.DoesBranchAlreadyExistOnDisk(repo, branch))
+	{
+		// Load from disk with ^0
+		return fmt::format("from refs/heads/{}^0\n", branch);
+	}
+
+	if (mConfig.branchMap.contains(branch))
+	{
+		const std::string fromLocation = mConfig.branchMap.at(branch);
+		return fmt::format("from {}\n", fromLocation);
+	}
+
+	// Unknown branch origin
+	return std::nullopt;
+}
+
 std::optional<Git::Mapping> Git::MapPath(const long int rev, const std::string_view& path)
 {
 	ZoneScoped;
@@ -316,6 +350,17 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 			const std::string mark =
 				!isMultiCommit ? fmt::format("mark :{}\n", rev.GetNumber()) : "";
 
+			const auto from = GetBranchOrigin(repo, branch);
+			if (!from.has_value())
+			{
+				return std::unexpected(
+					fmt::format(
+						"ERROR: Unknown branch origin for r{} at {:?} (for git branch {}/{}). Provide an origin in the [branch_origin] section of your config.toml file.",
+						rev.GetNumber(), file.svn->path, repo, branch
+					)
+				);
+			}
+
 			fmt::format_to(
 				outputIt,
 				"commit refs/heads/{}\n"
@@ -323,32 +368,11 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 				"original-oid r{}\n"
 				"committer {} {}\n"
 				"data {}\n"
-				"{}\n",
-				branch, mark, rev.GetNumber(), committer, time, message.length(), message
+				"{}\n"
+				"{}", branch, mark, rev.GetNumber(), committer, time, message.length(), message,
+				*from
 			);
 
-			if (mSeenRepoBranches.empty() && true /* Git repo is empty */)
-			{
-				// Try load the branch from disk, or create new commit with no ancestor
-			}
-			else if (!mSeenRepoBranches.empty() && (!mSeenRepoBranches.contains(repo) ||
-													!mSeenRepoBranches.at(repo).contains(branch)))
-			{
-				if (mConfig.branchMap.contains(branch))
-				{
-					std::string fromLocation = mConfig.branchMap.at(branch);
-					fmt::format_to(outputIt, "from {}\n", fromLocation);
-				}
-				else
-				{
-					return std::unexpected(
-						fmt::format(
-							"ERROR: Unknown branch origin for r{} at {:?} (for git branch {}/{}). Provide a origin in the [branch_origin] section of your config.toml file.",
-							rev.GetNumber(), file.svn->path, repo, branch
-						)
-					);
-				}
-			}
 			mSeenRepoBranches[repo].insert(branch);
 
 			std::string attributes = GetGitAttributesFile();
