@@ -251,7 +251,9 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 		{
 			auto cmp = git.repo <=> other.git.repo;
 			if (cmp != 0)
+			{
 				return cmp;
+			}
 			return git.branch <=> other.git.branch;
 		}
 	};
@@ -310,6 +312,7 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 			lastRepo = repo;
 			lastBranch = branch;
 
+			// Only mark unambiguous commits
 			const std::string mark =
 				!isMultiCommit ? fmt::format("mark :{}\n", rev.GetNumber()) : "";
 

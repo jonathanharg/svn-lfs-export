@@ -136,7 +136,7 @@ int main(int argc, char* argv[])
 
 		if (!result.has_value())
 		{
-			std::cerr << result.error() << '\n';
+			fmt::println(std::cerr, "Error converting r{}:\n{}", revNum, result.error());
 			return EXIT_FAILURE;
 		}
 	}
