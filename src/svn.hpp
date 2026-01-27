@@ -37,6 +37,44 @@ public:
 	void clear() { svn_pool_clear(ptr); }
 };
 
+class Repository
+{
+public:
+	explicit Repository(const std::string& path);
+	long int GetYoungestRevision();
+	Revision GetRevision(long int revision);
+
+private:
+	Pool mPool;
+	svn_repos_t* mRepos = nullptr;
+	svn_fs_t* mFs = nullptr;
+};
+
+class Revision
+{
+public:
+	const std::string& GetAuthor() const { return mAuthor; }
+	const std::string& GetLog() const { return mLog; }
+	const std::string& GetDate() const { return mDate; }
+	long int GetNumber() const { return mRevision; }
+	std::span<const File> GetFiles() const { return mFiles; }
+
+private:
+	Revision(svn_fs_t* repositoryFs, long int revision);
+	void SetupProperties(svn_fs_t* repositoryFs);
+	void SetupFiles(svn_fs_root_t* revisionFs);
+
+	long int mRevision;
+	std::string mAuthor;
+	std::string mLog;
+	std::string mDate;
+	std::vector<File> mFiles;
+
+	svn::Pool mRootPool;
+
+	friend class Repository;
+};
+
 struct File
 {
 	enum class Change : std::uint8_t
@@ -67,41 +105,4 @@ private:
 	svn_fs_root_t* mRevisionFs;
 };
 
-class Revision
-{
-public:
-	const std::string& GetAuthor() const { return mAuthor; }
-	const std::string& GetLog() const { return mLog; }
-	const std::string& GetDate() const { return mDate; }
-	long int GetNumber() const { return mRevision; }
-	std::span<const File> GetFiles() const { return mFiles; }
-
-private:
-	Revision(svn_fs_t* repositoryFs, long int revision);
-	void SetupProperties(svn_fs_t* repositoryFs);
-	void SetupFiles(svn_fs_root_t* revisionFs);
-
-	long int mRevision;
-	std::string mAuthor;
-	std::string mLog;
-	std::string mDate;
-	std::vector<File> mFiles;
-
-	svn::Pool mRootPool;
-
-	friend class Repository;
-};
-
-class Repository
-{
-public:
-	explicit Repository(const std::string& path);
-	long int GetYoungestRevision();
-	Revision GetRevision(long int revision);
-
-private:
-	Pool mPool;
-	svn_repos_t* mRepos = nullptr;
-	svn_fs_t* mFs = nullptr;
-};
 } // namespace svn
