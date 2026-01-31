@@ -54,18 +54,21 @@ struct File
 		long int rev;
 	};
 
-	explicit File(svn_fs_path_change3_t* change, svn_fs_root_t* revisionFs);
+	explicit File(svn_fs_root_t* revisionFs, std::string path, bool isDirectory);
+
 
 	std::unique_ptr<char[]> GetContents() const;
 
 	std::string path;
-	bool isDirectory;
-	bool isExecutable;
-	Change changeType;
+	bool isDirectory = false;
+	bool isExecutable = false;
+	bool isSymlink = false;
+	bool isBinary = false;
+	Change changeType = Change::Add;
 	size_t size = 0;
 	std::optional<CopyFrom> copiedFrom;
 
-	svn_fs_root_t* mRevisionFs;
+	svn_fs_root_t* mRevisionFs = nullptr;
 };
 
 class Repository

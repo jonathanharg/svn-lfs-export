@@ -95,27 +95,40 @@ Revision::Revision(svn_fs_t* repositoryFs, long int revision) :
 	svn_fs_path_change3_t* change = nullptr;
 	while ((err = svn_fs_path_change_get(&change, changesIt)) == SVN_NO_ERROR && change)
 	{
-		mFiles.emplace_back(change, revisionFs);
+		assert(change->node_kind == svn_node_file || change->node_kind == svn_node_dir);
+
+		const bool isDir = change->node_kind == svn_node_dir;
+		const std::string path = {change->path.data, change->path.len};
+
+		auto& file = mFiles.emplace_back(revisionFs, std::move(path), isDir);
+
+		file.changeType = static_cast<File::Change>(change->change_kind);
+
+		// The SVN API lies! copyfrom_known does not always imply copyfrom_path and copyfrom_rev are
+		// valid!!!
+		if (change->copyfrom_known && change->copyfrom_path && change->copyfrom_rev != -1)
+		{
+			file.copiedFrom = {.path = change->copyfrom_path, .rev = change->copyfrom_rev};
+		}
 	}
 }
 
-File::File(svn_fs_path_change3_t* change, svn_fs_root_t* revisionFs) :
-	path(change->path.data, change->path.len),
-	isDirectory(change->node_kind == svn_node_dir),
-	isExecutable(false),
-	changeType(static_cast<File::Change>(change->change_kind)),
+File::File(svn_fs_root_t* revisionFs, std::string path, bool isDirectory) :
+	path(path),
+	isDirectory(isDirectory),
 	mRevisionFs(revisionFs)
 {
 	ZoneScoped;
 	[[maybe_unused]] const svn_error_t* err = nullptr;
-	svn::Pool propsPool;
+	svn::Pool fileMetadataPool;
 
 	apr_hash_t* props = nullptr;
-	err = svn_fs_node_proplist(&props, revisionFs, change->path.data, propsPool);
+	err = svn_fs_node_proplist(&props, revisionFs, path.c_str(), fileMetadataPool);
 
 	if (props)
 	{
-		for (apr_hash_index_t* hi = apr_hash_first(propsPool, props); hi; hi = apr_hash_next(hi))
+		for (apr_hash_index_t* hi = apr_hash_first(fileMetadataPool, props); hi;
+			 hi = apr_hash_next(hi))
 		{
 			const void* key = nullptr;
 			void* val = nullptr;
@@ -124,52 +137,37 @@ File::File(svn_fs_path_change3_t* change, svn_fs_root_t* revisionFs) :
 			std::string_view propName{static_cast<const char*>(key)};
 			auto* propValue = static_cast<svn_string_t*>(val);
 
-			if (propName == "svn:executable")
+			if (propName == SVN_PROP_EXECUTABLE)
 			{
 				isExecutable = true;
 				continue;
 			}
-			else if (propName == "svn:externals")
+			else if (propName == SVN_PROP_MIME_TYPE)
+			{
+				isBinary = svn_mime_type_is_binary(propValue->data);
+			}
+			else if (propName == SVN_PROP_SPECIAL)
+			{
+				isSymlink = true;
+			}
+			else if (propName == SVN_PROP_EXTERNALS)
 			{
 				LogError(
 					"Warning: svn external {:?} in {} is not supported in git", propValue->data,
-					change->path.data
+					path.c_str()
 				);
 				continue;
 			}
-			else if (propName == "svn:mergeinfo" || propName == "svn:keywords" ||
-					 propName == "svn:eol-style" || propName == "svn:mime-type" ||
-					 propName == "svn:ignore")
-			{
-				continue;
-			}
-
-			LogError(
-				"Warning: Ignoring prop {} = {:?} ({})", propName, propValue->data,
-				change->path.data
-			);
 		}
 	}
 
-	assert(change->node_kind == svn_node_file || change->node_kind == svn_node_dir);
-
-	// The SVN API lies! copyfrom_known does not always imply copyfrom_path and copyfrom_rev are
-	// valid!!!
-	if (change->copyfrom_known && change->copyfrom_path && change->copyfrom_rev != -1)
+	svn_filesize_t fileSize = 0;
+	err = svn_fs_file_length(&fileSize, mRevisionFs, path.c_str(), fileMetadataPool);
+	if (!err)
 	{
-		copiedFrom = {.path = change->copyfrom_path, .rev = change->copyfrom_rev};
-	}
-
-	if (!isDirectory && changeType != File::Change::Delete)
-	{
-		svn::Pool filePool;
-
-		svn_filesize_t signedFileSize = 0;
-		err = svn_fs_file_length(&signedFileSize, mRevisionFs, path.c_str(), filePool);
-		assert(!err);
-
-		// NOTE: This will overflow for files > 4GB on 32bit systems, don't care
-		size = static_cast<size_t>(signedFileSize);
+		size = static_cast<size_t>(fileSize);
+		assert(fileSize >= 0);
+		assert(static_cast<uint64_t>(fileSize) <= std::numeric_limits<size_t>::max());
 	}
 }
 
@@ -193,6 +191,7 @@ std::unique_ptr<char[]> File::GetContents() const
 	size_t readSize = size;
 	err = svn_stream_read_full(contentStream, fileBuffer.get(), &readSize);
 	assert(!err);
+	assert(readSize == size);
 
 	return fileBuffer;
 }
