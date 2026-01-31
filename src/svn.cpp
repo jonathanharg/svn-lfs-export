@@ -2,8 +2,12 @@
 #include "utils.hpp"
 
 #include <apr_hash.h>
+#include <apr_pools.h>
+#include <svn_dirent_uri.h>
+#include <svn_error.h>
 #include <svn_fs.h>
 #include <svn_io.h>
+#include <svn_path.h>
 #include <svn_props.h>
 #include <svn_repos.h>
 #include <svn_string.h>
@@ -13,10 +17,14 @@
 
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 
 std::optional<std::string> HashGet(apr_hash_t* hash, const char* key)
 {
@@ -30,6 +38,37 @@ std::optional<std::string> HashGet(apr_hash_t* hash, const char* key)
 
 namespace svn
 {
+
+using FileCallback = std::function<void(const char* path)>;
+
+void WalkAllChildren(
+	svn_fs_root_t* root, const char* path, apr_pool_t* pool, const FileCallback& callback
+)
+{
+	apr_hash_t* entries = nullptr;
+	[[maybe_unused]] const svn_error_t* err = nullptr;
+	err = svn_fs_dir_entries(&entries, root, path, pool);
+
+	for (apr_hash_index_t* hi = apr_hash_first(pool, entries); hi; hi = apr_hash_next(hi))
+	{
+		const char* name = nullptr;
+		svn_fs_dirent_t* dirent = nullptr;
+		apr_hash_this(
+			hi, reinterpret_cast<const void**>(&name), nullptr, reinterpret_cast<void**>(&dirent)
+		);
+
+		const char* childPath = svn_dirent_join(path, name, pool);
+
+		if (dirent->kind == svn_node_dir)
+		{
+			WalkAllChildren(root, childPath, pool, callback);
+		}
+		else
+		{
+			callback(childPath);
+		}
+	}
+}
 
 Repository::Repository(const std::string& path)
 {
@@ -100,7 +139,7 @@ Revision::Revision(svn_fs_t* repositoryFs, long int revision) :
 		const bool isDir = change->node_kind == svn_node_dir;
 		const std::string path = {change->path.data, change->path.len};
 
-		auto& file = mFiles.emplace_back(revisionFs, std::move(path), isDir);
+		auto& file = mFiles.emplace_back(revisionFs, path, isDir);
 
 		file.changeType = static_cast<File::Change>(change->change_kind);
 
@@ -110,10 +149,18 @@ Revision::Revision(svn_fs_t* repositoryFs, long int revision) :
 		{
 			file.copiedFrom = {.path = change->copyfrom_path, .rev = change->copyfrom_rev};
 		}
+
+		if (file.copiedFrom.has_value() && file.isDirectory)
+		{
+			WalkAllChildren(
+				revisionFs, path.c_str(), resultPool, [&](const char* subFilePath)
+				{ mFiles.emplace_back(revisionFs, subFilePath, false); }
+			);
+		}
 	}
 }
 
-File::File(svn_fs_root_t* revisionFs, std::string path, bool isDirectory) :
+File::File(svn_fs_root_t* revisionFs, const std::string& path, bool isDirectory) :
 	path(path),
 	isDirectory(isDirectory),
 	mRevisionFs(revisionFs)

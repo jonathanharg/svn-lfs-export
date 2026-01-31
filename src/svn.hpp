@@ -54,8 +54,7 @@ struct File
 		long int rev;
 	};
 
-	explicit File(svn_fs_root_t* revisionFs, std::string path, bool isDirectory);
-
+	explicit File(svn_fs_root_t* revisionFs, const std::string& path, bool isDirectory);
 
 	std::unique_ptr<char[]> GetContents() const;
 
