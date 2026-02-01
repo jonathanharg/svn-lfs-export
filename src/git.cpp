@@ -1,6 +1,7 @@
 #include "config.hpp"
 #include "git.hpp"
 #include "svn.hpp"
+#include "utils.hpp"
 
 #include <date/date.h>
 #include <date/tz.h>
@@ -369,8 +370,8 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 				"committer {} {}\n"
 				"data {}\n"
 				"{}\n"
-				"{}", branch, mark, rev.GetNumber(), committer, time, message.length(), message,
-				*from
+				"{}",
+				branch, mark, rev.GetNumber(), committer, time, message.length(), message, *from
 			);
 
 			mSeenRepoBranches[repo].insert(branch);
@@ -406,6 +407,14 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 			{
 				lfsPointer = WriteLFSFile(svnFile, file.git.repo);
 				outputFile = lfsPointer;
+			}
+
+			if (file.svn->isBinary && !file.git.lfs)
+			{
+				LogInfo(
+					"WARNING: {:?} is a binary file, but it's not being stored with LFS!",
+					file.git.path
+				);
 			}
 
 			fmt::format_to(
