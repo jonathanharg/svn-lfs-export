@@ -417,6 +417,17 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 				);
 			}
 
+			std::string symlinkPath;
+			if (file.svn->isSymlink)
+			{
+				// svn symlinks are in the format "link path/to/target"
+				static const RE2 pattern("link (.*)");
+				RE2::FullMatch(svnFile, pattern, &symlinkPath);
+
+				mode = Mode::Symlink;
+				outputFile = symlinkPath;
+			}
+
 			fmt::format_to(
 				outputIt,
 				"M {} inline {}\n"
