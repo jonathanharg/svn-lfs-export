@@ -7,6 +7,7 @@
 #include <date/tz.h>
 #include <fmt/base.h>
 #include <fmt/format.h>
+#include <fmt/os.h>
 #include <fmt/ostream.h>
 #include <git2.h>
 #include <git2/pathspec.h>
@@ -412,8 +413,21 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 
 			if (file.svn->isBinary && !file.git.lfs)
 			{
-				LogInfo(
+				auto logFile = fmt::output_file(
+					"lfs_files.log", fmt::file::WRONLY | fmt::file::CREATE | fmt::file::APPEND
+				);
+				logFile.print(
 					"WARNING: {:?} is a binary file, but it's not being stored with LFS!",
+					file.git.path
+				);
+			}
+			else if (!file.svn->isBinary && file.git.lfs)
+			{
+				auto logFile = fmt::output_file(
+					"lfs_files.log", fmt::file::WRONLY | fmt::file::CREATE | fmt::file::APPEND
+				);
+				logFile.print(
+					"WARNING: {:?} isn't a binary file, but it's being stored with LFS!",
 					file.git.path
 				);
 			}
