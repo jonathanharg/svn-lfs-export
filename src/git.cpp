@@ -154,8 +154,9 @@ std::optional<std::string> Git::GetBranchOrigin(const std::string& repo, const s
 
 	if (mConfig.branchMap.contains(branch))
 	{
+		// Delete contents of new branch, so it's clean like svn
 		const std::string fromLocation = mConfig.branchMap.at(branch);
-		return fmt::format("from {}\n", fromLocation);
+		return fmt::format("from {}\ndeleteall\n", fromLocation);
 	}
 
 	// Unknown branch origin
