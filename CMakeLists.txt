@@ -28,9 +28,7 @@ add_library(
 	src/config.cpp
 	src/git.cpp
 	src/svn.cpp
-	src/writers/stdout_writer.cpp
-	src/writers/multi_repo_writer.cpp
-	src/writers/debug_writer.cpp
+	src/writer.cpp
 )
 target_link_libraries(
 	svn-lfs-export_lib

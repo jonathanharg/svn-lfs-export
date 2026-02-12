@@ -29,29 +29,6 @@ public:
 	virtual bool DoesRepoExist(std::string_view) { return true; };
 };
 
-class stdoutWriter final : public IWriter
-{
-public:
-	void WriteToFastImport(std::string_view repo, std::string_view content) override;
-	std::filesystem::path GetLFSRoot(std::string_view repo) override;
-	bool DoesBranchAlreadyExistOnDisk(std::string_view repo, std::string_view branch) override;
-
-private:
-	std::optional<std::string> mOutputRepository;
-};
-
-class DebugWriter final : public IWriter
-{
-public:
-	void WriteToFastImport(std::string_view repo, std::string_view content) override;
-	std::filesystem::path GetLFSRoot(std::string_view repo) override;
-	bool DoesBranchAlreadyExistOnDisk(std::string_view repo, std::string_view branch) override;
-	const std::unordered_map<std::string, std::string>& GetDebugOutput() { return mOutputs; };
-
-private:
-	std::unordered_map<std::string, std::string> mOutputs;
-};
-
 struct FastImportProcess
 {
 	explicit FastImportProcess(std::filesystem::path repoPath);
