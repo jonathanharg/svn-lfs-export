@@ -22,41 +22,6 @@ find_package(tomlplusplus CONFIG REQUIRED)
 
 include(cmake/warnings.cmake)
 
-# Library
-add_library(
-	svn-lfs-export_lib OBJECT
-	src/config.cpp
-	src/git.cpp
-	src/svn.cpp
-	src/writer.cpp
-)
-target_link_libraries(
-	svn-lfs-export_lib
-	PUBLIC APR::APR
-		   Boost::process
-		   OpenSSL::Crypto
-		   fmt::fmt
-		   libgit2::libgit2package
-		   re2::re2
-		   Subversion::fs
-		   Subversion::repos
-		   Subversion::subr
-		   tomlplusplus::tomlplusplus
-	PRIVATE date::date date::date-tz svn-lfs-export_warnings
-)
-
-target_include_directories(svn-lfs-export_lib PUBLIC "\$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>")
-target_compile_features(svn-lfs-export_lib PUBLIC cxx_std_23)
-target_compile_definitions(svn-lfs-export_lib PUBLIC TOML_ENABLE_FORMATTERS=0 TOML_EXCEPTIONS=0)
-
-# Executable
-add_executable(svn-lfs-export_exe src/main.cpp)
-set_property(TARGET svn-lfs-export_exe PROPERTY OUTPUT_NAME svn-lfs-export)
-target_compile_features(svn-lfs-export_exe PRIVATE cxx_std_23)
-target_link_libraries(svn-lfs-export_exe PRIVATE svn-lfs-export_lib argparse::argparse svn-lfs-export_warnings)
-
-target_compile_definitions(svn-lfs-export_exe PRIVATE PROJECT_VERSION="${PROJECT_VERSION}")
-
 set(CODEGEN_DIR ${CMAKE_CURRENT_BINARY_DIR}/codegen)
 file(READ example_config.toml EXAMPLE_CONFIG)
 configure_file(src/example_config.hpp.in ${CODEGEN_DIR}/example_config.hpp @ONLY)
@@ -65,4 +30,37 @@ set_property(
 	APPEND
 	PROPERTY CMAKE_CONFIGURE_DEPENDS src/example_config.hpp.in example_config.toml
 )
-target_include_directories(svn-lfs-export_exe PRIVATE ${CODEGEN_DIR})
+
+# Executable
+add_executable(
+	svn-lfs-export
+	src/config.cpp
+	src/git.cpp
+	src/main.cpp
+	src/svn.cpp
+	src/writer.cpp
+)
+
+target_compile_features(svn-lfs-export PUBLIC cxx_std_23)
+target_include_directories(svn-lfs-export PUBLIC "${PROJECT_SOURCE_DIR}/src" ${CODEGEN_DIR})
+
+target_link_libraries(
+	svn-lfs-export
+	PUBLIC APR::APR
+		   argparse::argparse
+		   Boost::process
+		   date::date
+		   date::date-tz
+		   fmt::fmt
+		   libgit2::libgit2package
+		   OpenSSL::Crypto
+		   re2::re2
+		   Subversion::fs
+		   Subversion::repos
+		   Subversion::subr
+		   tomlplusplus::tomlplusplus
+		   svn-lfs-export_warnings
+)
+target_compile_definitions(
+	svn-lfs-export PUBLIC TOML_ENABLE_FORMATTERS=0 TOML_EXCEPTIONS=0 PROJECT_VERSION="${PROJECT_VERSION}"
+)
