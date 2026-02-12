@@ -22,7 +22,7 @@ public:
 		bool lfs = false;
 	};
 
-	Git(const Config& config, IWriter& writer) :
+	Git(const Config& config, Writer& writer) :
 		mConfig(config),
 		mWriter(writer) {};
 
@@ -46,6 +46,6 @@ public:
 
 private:
 	const Config& mConfig;
-	IWriter& mWriter;
+	Writer& mWriter;
 	std::unordered_map<std::string, std::unordered_set<std::string>> mSeenRepoBranches;
 };

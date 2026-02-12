@@ -29,7 +29,7 @@ FastImportProcess::FastImportProcess(std::filesystem::path repoPath) :
 		process::process_stdio{.in = pipe, .out = stdout, .err = stdout}
 	) {};
 
-void MultiRepoWriter::WriteToFastImport(std::string_view repo, std::string_view content)
+void Writer::WriteToFastImport(std::string_view repo, std::string_view content)
 {
 	std::string repoStr{repo};
 	if (!mRunningProcesses.contains(repoStr))
@@ -44,12 +44,12 @@ void MultiRepoWriter::WriteToFastImport(std::string_view repo, std::string_view 
 	asio::write(mRunningProcesses.at(repoStr).pipe, asio::buffer(content));
 }
 
-std::filesystem::path MultiRepoWriter::GetLFSRoot(std::string_view repo)
+std::filesystem::path Writer::GetLFSRoot(std::string_view repo)
 {
 	return std::filesystem::current_path() / repo / ".git";
 }
 
-bool MultiRepoWriter::DoesBranchAlreadyExistOnDisk(std::string_view repo, std::string_view branch)
+bool Writer::DoesBranchAlreadyExistOnDisk(std::string_view repo, std::string_view branch)
 {
 	if (!DoesRepoExist(repo))
 	{
@@ -87,7 +87,7 @@ bool MultiRepoWriter::DoesBranchAlreadyExistOnDisk(std::string_view repo, std::s
 	return false;
 }
 
-bool MultiRepoWriter::DoesRepoExist(std::string_view repo)
+bool Writer::DoesRepoExist(std::string_view repo)
 {
 	std::filesystem::path path = std::filesystem::current_path() / repo;
 	int err = git_repository_open(nullptr, path.c_str());
@@ -109,7 +109,7 @@ bool MultiRepoWriter::DoesRepoExist(std::string_view repo)
 	return true;
 }
 
-void MultiRepoWriter::CreateRepo(std::string_view repo)
+void Writer::CreateRepo(std::string_view repo)
 {
 	git_repository* repoPtr = nullptr;
 	std::filesystem::path path = std::filesystem::current_path() / repo;
@@ -127,7 +127,7 @@ void MultiRepoWriter::CreateRepo(std::string_view repo)
 	}
 }
 
-MultiRepoWriter::~MultiRepoWriter()
+Writer::~Writer()
 {
 	for (auto& [_, fastImportProcess] : mRunningProcesses)
 	{

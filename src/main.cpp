@@ -111,7 +111,7 @@ int main(int argc, char* argv[])
 		return EXIT_FAILURE;
 	}
 
-	MultiRepoWriter writer;
+	Writer writer;
 	Git git(config, writer);
 
 	// TODO: Replace when not using stdoutWriter
