@@ -16,6 +16,8 @@ set(CLANG_WARNINGS
 	-Wdouble-promotion
 	-Wformat=2
 	-Wimplicit-fallthrough
+	-Wno-unused-but-set-variable
+	-Wno-unused-variable
 )
 
 set(GCC_WARNINGS

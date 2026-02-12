@@ -45,8 +45,10 @@ void WalkAllChildren(
 )
 {
 	apr_hash_t* entries = nullptr;
-	[[maybe_unused]] const svn_error_t* err = nullptr;
+	svn_error_t* err = nullptr;
 	err = svn_fs_dir_entries(&entries, root, path, pool);
+	if (err)
+		svn_error_clear(err);
 
 	for (apr_hash_index_t* hi = apr_hash_first(pool, entries); hi; hi = apr_hash_next(hi))
 	{
@@ -73,8 +75,8 @@ Repository::Repository(const std::string& path)
 {
 	Pool scratchPool;
 
-	[[maybe_unused]]
 	const svn_error_t* err = svn_repos_open3(&mRepos, path.c_str(), nullptr, mPool, scratchPool);
+	assert(!err);
 	mFs = svn_repos_fs(mRepos);
 
 	assert(mFs);
@@ -85,7 +87,6 @@ long int Repository::GetYoungestRevision()
 	Pool scratchPool;
 	long int youngestRev = 1;
 
-	[[maybe_unused]]
 	const svn_error_t* err = svn_fs_youngest_rev(&youngestRev, mFs, scratchPool);
 	assert(!err);
 
@@ -100,8 +101,7 @@ Revision Repository::GetRevision(long int revision)
 Revision::Revision(svn_fs_t* repositoryFs, long int revision) :
 	mRevNum(revision)
 {
-	[[maybe_unused]]
-	const svn_error_t* err = nullptr;
+	svn_error_t* err = nullptr;
 
 	Pool resultPool;
 	Pool scratchPool;
@@ -151,6 +151,8 @@ Revision::Revision(svn_fs_t* repositoryFs, long int revision) :
 			);
 		}
 	}
+	if (err)
+		svn_error_clear(err);
 }
 
 File::File(svn_fs_root_t* revisionFs, const std::string& path, bool isDirectory) :
@@ -158,11 +160,13 @@ File::File(svn_fs_root_t* revisionFs, const std::string& path, bool isDirectory)
 	isDirectory(isDirectory),
 	mRevisionFs(revisionFs)
 {
-	[[maybe_unused]] const svn_error_t* err = nullptr;
+	svn_error_t* err = nullptr;
 	svn::Pool fileMetadataPool;
 
 	apr_hash_t* props = nullptr;
 	err = svn_fs_node_proplist(&props, revisionFs, path.c_str(), fileMetadataPool);
+	if (err)
+		svn_error_clear(err);
 
 	if (props)
 	{
@@ -208,6 +212,10 @@ File::File(svn_fs_root_t* revisionFs, const std::string& path, bool isDirectory)
 		assert(fileSize >= 0);
 		assert(static_cast<uint64_t>(fileSize) <= std::numeric_limits<size_t>::max());
 	}
+	else
+	{
+		svn_error_clear(err);
+	}
 }
 
 std::unique_ptr<char[]> File::GetContents() const
@@ -216,7 +224,7 @@ std::unique_ptr<char[]> File::GetContents() const
 	{
 		return nullptr;
 	}
-	[[maybe_unused]] const svn_error_t* err = nullptr;
+	const svn_error_t* err = nullptr;
 	svn::Pool filePool;
 
 	svn_stream_t* contentStream = nullptr;

@@ -68,7 +68,7 @@ bool Writer::DoesBranchAlreadyExistOnDisk(std::string_view repo, std::string_vie
 	gitProcess.wait();
 
 	std::string output;
-	[[maybe_unused]] boost::system::error_code error;
+	boost::system::error_code error;
 
 	asio::read(pipe, asio::dynamic_buffer(output), error);
 	assert(!error || (error == asio::error::eof));
