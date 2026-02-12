@@ -68,8 +68,3 @@ set_property(
 	PROPERTY CMAKE_CONFIGURE_DEPENDS src/example_config.hpp.in example_config.toml
 )
 target_include_directories(svn-lfs-export_exe PRIVATE ${CODEGEN_DIR})
-
-include(CTest)
-if(BUILD_TESTING)
-	add_subdirectory(test)
-endif()

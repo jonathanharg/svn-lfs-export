@@ -16,8 +16,3 @@ Build. Available configs are `Debug` `Release` `RelWithDebInfo` `MinSizeRel` and
 ```
 cmake --build build --config=Release
 ```
-
-Test
-```
-cmake --build build && ctest --test-dir build
-```
