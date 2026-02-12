@@ -411,27 +411,6 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 				outputFile = lfsPointer;
 			}
 
-			if (file.svn->isBinary && !file.git.lfs)
-			{
-				auto logFile = fmt::output_file(
-					"lfs_files.log", fmt::file::WRONLY | fmt::file::CREATE | fmt::file::APPEND
-				);
-				logFile.print(
-					"WARNING: {:?} is a binary file, but it's not being stored with LFS!",
-					file.git.path
-				);
-			}
-			else if (!file.svn->isBinary && file.git.lfs)
-			{
-				auto logFile = fmt::output_file(
-					"lfs_files.log", fmt::file::WRONLY | fmt::file::CREATE | fmt::file::APPEND
-				);
-				logFile.print(
-					"WARNING: {:?} isn't a binary file, but it's being stored with LFS!",
-					file.git.path
-				);
-			}
-
 			std::string symlinkPath;
 			if (file.svn->isSymlink)
 			{
