@@ -13,7 +13,6 @@
 #include <git2/pathspec.h>
 #include <openssl/sha.h>
 #include <re2/re2.h>
-#include <tracy/Tracy.hpp>
 
 #include <algorithm>
 #include <array>
@@ -80,8 +79,6 @@ std::string Git::GetSha256(const std::string_view input)
 
 std::string Git::WriteLFSFile(const std::string_view input, const std::string_view repo)
 {
-	ZoneScoped;
-
 	std::string hash = GetSha256(input);
 	std::filesystem::path root = mWriter.GetLFSRoot(repo);
 	std::filesystem::path path =
@@ -169,14 +166,10 @@ std::optional<std::string> Git::GetBranchOrigin(const std::string& repo, const s
 
 std::optional<Git::Mapping> Git::MapPath(const long int rev, const std::string_view& path)
 {
-	ZoneScoped;
-
 	const std::vector<Rule>& rules = mConfig.rules;
 
 	for (const Rule& rule : rules)
 	{
-		ZoneScopedN("Rule");
-
 		// Given a RULE, takes an INPUT REVISION and INPUT SVN PATH
 		// 1. If not MIN REVISION <= INPUT REVISION <= MAX REVISION continue
 		//    to next rule
@@ -277,8 +270,6 @@ std::optional<Git::Mapping> Git::MapPath(const long int rev, const std::string_v
 
 std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 {
-	ZoneScoped;
-
 	const std::string committer = GetAuthor(rev.GetAuthor());
 	const std::string message = GetCommitMessage(rev.GetLog(), rev.GetAuthor(), rev.GetNumber());
 	const std::string time = GetTime(rev.GetDate());

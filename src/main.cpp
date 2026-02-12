@@ -11,7 +11,6 @@
 #include <git2.h>
 #include <git2/global.h>
 #include <re2/re2.h>
-#include <tracy/Tracy.hpp>
 
 #include <cstdlib>
 #include <exception>
@@ -120,11 +119,8 @@ int main(int argc, char* argv[])
 
 	for (long int revNum = startRev; revNum <= stopRev; revNum++)
 	{
-		ZoneScopedN("Revision");
-		ZoneValue(revNum);
 		svn::Revision rev = repository.GetRevision(revNum);
 		auto result = git.WriteCommit(rev);
-		FrameMark;
 
 		if (revNum % 500 == 0)
 		{

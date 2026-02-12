@@ -13,7 +13,6 @@
 #include <svn_string.h>
 #include <svn_types.h>
 #include <svn_types_impl.h>
-#include <tracy/Tracy.hpp>
 
 #include <cassert>
 #include <cstddef>
@@ -72,8 +71,6 @@ void WalkAllChildren(
 
 Repository::Repository(const std::string& path)
 {
-	ZoneScoped;
-
 	Pool scratchPool;
 
 	[[maybe_unused]]
@@ -85,8 +82,6 @@ Repository::Repository(const std::string& path)
 
 long int Repository::GetYoungestRevision()
 {
-	ZoneScoped;
-
 	Pool scratchPool;
 	long int youngestRev = 1;
 
@@ -105,8 +100,6 @@ Revision Repository::GetRevision(long int revision)
 Revision::Revision(svn_fs_t* repositoryFs, long int revision) :
 	mRevNum(revision)
 {
-	ZoneScoped;
-
 	[[maybe_unused]]
 	const svn_error_t* err = nullptr;
 
@@ -165,7 +158,6 @@ File::File(svn_fs_root_t* revisionFs, const std::string& path, bool isDirectory)
 	isDirectory(isDirectory),
 	mRevisionFs(revisionFs)
 {
-	ZoneScoped;
 	[[maybe_unused]] const svn_error_t* err = nullptr;
 	svn::Pool fileMetadataPool;
 
@@ -220,8 +212,6 @@ File::File(svn_fs_root_t* revisionFs, const std::string& path, bool isDirectory)
 
 std::unique_ptr<char[]> File::GetContents() const
 {
-	ZoneScoped;
-
 	if (size == 0)
 	{
 		return nullptr;

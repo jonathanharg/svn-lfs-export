@@ -19,7 +19,6 @@ find_package(libgit2 CONFIG REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(re2 CONFIG REQUIRED)
 find_package(tomlplusplus CONFIG REQUIRED)
-find_package(Tracy CONFIG REQUIRED)
 
 include(cmake/warnings.cmake)
 
@@ -45,13 +44,12 @@ target_link_libraries(
 		   Subversion::repos
 		   Subversion::subr
 		   tomlplusplus::tomlplusplus
-		   Tracy::TracyClient
 	PRIVATE date::date date::date-tz svn-lfs-export_warnings
 )
 
 target_include_directories(svn-lfs-export_lib PUBLIC "\$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>")
 target_compile_features(svn-lfs-export_lib PUBLIC cxx_std_23)
-target_compile_definitions(svn-lfs-export_lib PUBLIC TOML_ENABLE_FORMATTERS=0 TOML_EXCEPTIONS=0 TRACY_ENABLE)
+target_compile_definitions(svn-lfs-export_lib PUBLIC TOML_ENABLE_FORMATTERS=0 TOML_EXCEPTIONS=0)
 
 # Executable
 add_executable(svn-lfs-export_exe src/main.cpp)

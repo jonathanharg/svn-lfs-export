@@ -8,8 +8,7 @@
     "libgit2",
     "openssl",
     "re2",
-    "tomlplusplus",
-    "tracy"
+    "tomlplusplus"
   ],
   "overrides": [
     {
