@@ -87,9 +87,12 @@ std::string Git::WriteLFSFile(const std::string_view input, const std::string_vi
 	std::filesystem::path path =
 		root / "lfs" / "objects" / hash.substr(0, 2) / hash.substr(2, 2) / hash;
 
-	std::filesystem::create_directories(path.parent_path());
-	std::ofstream file{path};
-	file << input;
+	if (!std::filesystem::exists(path))
+	{
+		std::filesystem::create_directories(path.parent_path());
+		std::ofstream file{path};
+		file << input;
+	}
 
 	return fmt::format(
 		"version https://git-lfs.github.com/spec/v1\noid sha256:{}\nsize {}\n", hash, input.size()
