@@ -103,19 +103,15 @@ int main(int argc, char* argv[])
 	}
 	else
 	{
-		fmt::println(
-			std::cerr,
-			"Unknown revision range {:?}. Use the format -r 1234, -r 1234:5678 or -r 1234:HEAD",
-			*revString
-		);
+		Log("Unknown revision range {:?}. Use the format -r 1234, -r 1234:5678 or -r 1234:HEAD",
+			*revString);
 		return EXIT_FAILURE;
 	}
 
 	Writer writer;
 	Git git(config, writer);
 
-	// TODO: Replace when not using stdoutWriter
-	LogInfo("Running from r{} to r{}", startRev, stopRev);
+	Log("Running from r{} to r{}", startRev, stopRev);
 
 	for (long int revNum = startRev; revNum <= stopRev; revNum++)
 	{
@@ -125,14 +121,12 @@ int main(int argc, char* argv[])
 		if (revNum % 500 == 0)
 		{
 			float percent = 100.0F * (static_cast<float>(revNum) / static_cast<float>(stopRev));
-			// TODO: Replace when not using stdoutWriter
-			LogInfo("Converting {}% [{}/{}]", percent, revNum, stopRev);
-			LogError("Converting {}% [{}/{}]", percent, revNum, stopRev);
+			Log("Converting {}% [{}/{}]", percent, revNum, stopRev);
 		}
 
 		if (!result.has_value())
 		{
-			fmt::println(std::cerr, "Error converting r{}:\n{}", revNum, result.error());
+			Log("Error converting r{}:\n{}", revNum, result.error());
 			return EXIT_FAILURE;
 		}
 	}

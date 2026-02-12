@@ -195,10 +195,8 @@ File::File(svn_fs_root_t* revisionFs, const std::string& path, bool isDirectory)
 			}
 			else if (propName == SVN_PROP_EXTERNALS)
 			{
-				LogError(
-					"WARNING: svn external {:?} in {} is not supported in git", propValue->data,
-					path.c_str()
-				);
+				Log("WARNING: svn external {:?} in {} is not supported in git", propValue->data,
+					path.c_str());
 				continue;
 			}
 		}

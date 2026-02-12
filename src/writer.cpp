@@ -99,10 +99,8 @@ bool Writer::DoesRepoExist(std::string_view repo)
 
 	if (err != GIT_OK)
 	{
-		LogError(
-			"Unexpected error opening Git repository {:?}: {}", path.c_str(),
-			git_error_last()->message
-		);
+		Log("Unexpected error opening Git repository {:?}: {}", path.c_str(),
+			git_error_last()->message);
 		std::exit(EXIT_FAILURE);
 	}
 
@@ -119,10 +117,8 @@ void Writer::CreateRepo(std::string_view repo)
 
 	if (err != GIT_OK)
 	{
-		LogError(
-			"Unexpected error creating Git repository {:?}: {}", path.c_str(),
-			git_error_last()->message
-		);
+		Log("Unexpected error creating Git repository {:?}: {}", path.c_str(),
+			git_error_last()->message);
 		std::exit(EXIT_FAILURE);
 	}
 }
