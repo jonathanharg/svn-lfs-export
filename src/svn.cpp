@@ -213,7 +213,6 @@ File::File(svn_fs_root_t* revisionFs, const std::string& path, bool isDirectory)
 	{
 		size = static_cast<size_t>(fileSize);
 		assert(fileSize >= 0);
-		assert(static_cast<uint64_t>(fileSize) <= std::numeric_limits<size_t>::max());
 	}
 	else
 	{
