@@ -5,15 +5,15 @@
 #include <fmt/ranges.h>
 #include <git2.h>
 
+#include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
-#include <ranges>
-#include <sstream>
 #include <string>
 #include <string_view>
-#include <utility>
+#include <unistd.h>
 #include <vector>
 
 void Writer::StartProcess(const std::string& repo)
@@ -50,14 +50,14 @@ void Writer::StartProcess(const std::string& repo)
 	git_branch_iterator_new(&iter, gitRepo, GIT_BRANCH_LOCAL);
 
 	git_reference* ref = nullptr;
-	git_branch_t type;
+	git_branch_t type{};
 
 	while (git_branch_next(&ref, &type, iter) == 0)
 	{
 		const char* name = nullptr;
 		git_branch_name(&name, ref);
 
-		mRepoBranches[repo].push_back(name);
+		mRepoBranches[repo].emplace_back(name);
 
 		git_reference_free(ref);
 	}

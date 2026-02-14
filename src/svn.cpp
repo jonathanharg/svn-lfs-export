@@ -23,7 +23,6 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <utility>
 
 std::optional<std::string> HashGet(apr_hash_t* hash, const char* key)
 {
@@ -48,7 +47,9 @@ void WalkAllChildren(
 	svn_error_t* err = nullptr;
 	err = svn_fs_dir_entries(&entries, root, path, pool);
 	if (err)
+	{
 		svn_error_clear(err);
+	}
 
 	for (apr_hash_index_t* hi = apr_hash_first(pool, entries); hi; hi = apr_hash_next(hi))
 	{
@@ -152,7 +153,9 @@ Revision::Revision(svn_fs_t* repositoryFs, long int revision) :
 		}
 	}
 	if (err)
+	{
 		svn_error_clear(err);
+	}
 }
 
 File::File(svn_fs_root_t* revisionFs, const std::string& path, bool isDirectory) :
@@ -166,7 +169,9 @@ File::File(svn_fs_root_t* revisionFs, const std::string& path, bool isDirectory)
 	apr_hash_t* props = nullptr;
 	err = svn_fs_node_proplist(&props, revisionFs, path.c_str(), fileMetadataPool);
 	if (err)
+	{
 		svn_error_clear(err);
+	}
 
 	if (props)
 	{

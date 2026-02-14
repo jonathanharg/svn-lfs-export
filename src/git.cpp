@@ -19,10 +19,10 @@
 #include <cassert>
 #include <chrono>
 #include <cstddef>
+#include <cstdio>
 #include <expected>
 #include <filesystem>
 #include <fstream>
-#include <iterator>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -121,9 +121,9 @@ std::string Git::GetTime(const std::string& svnTime)
 
 	auto unixEpoch = utcTime.time_since_epoch().count();
 
-	const date::time_zone* tz = date::get_tzdb().locate_zone(mConfig.timezone);
+	const date::time_zone* serverTimezone = date::get_tzdb().locate_zone(mConfig.timezone);
 
-	date::zoned_time<std::chrono::seconds> zonedTime{tz, utcTime};
+	date::zoned_time<std::chrono::seconds> zonedTime{serverTimezone, utcTime};
 	std::string formattedOffset = date::format("%z", zonedTime);
 
 	return fmt::format("{} {}", unixEpoch, formattedOffset);
@@ -320,7 +320,7 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 	std::string lastRepo;
 	std::string lastBranch;
 
-	// One SVN revision mapps to multiple different git commits
+	// One SVN revision maps to multiple different git commits
 	const bool isMultiCommit =
 		!mappings.empty() && (mappings.front().git.repo != mappings.back().git.repo ||
 							  mappings.front().git.branch != mappings.back().git.branch);

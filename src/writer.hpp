@@ -1,11 +1,12 @@
 #pragma once
 #include "subprocess.h"
 
+#include <cstdio>
 #include <filesystem>
-#include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <vector>
 
 class Writer
 {
