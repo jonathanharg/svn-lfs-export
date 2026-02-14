@@ -16,11 +16,11 @@ LFS = [
 #     - {log} The original SVN commit/log message
 #     - {usr} The original committers SVN username
 #     - {rev} The original revision number
-# commit_message = """
-# {log}
-#
-# This commit was converted from r{rev} by svn-lfs-export.
-# """
+commit_message = """
+{log}
+
+Svn-Revision: {rev}
+"""
 
 # Require all files in all commits to match a provided rule. If a file in a commit does
 # not match any rule, the program will terminate with an error.
@@ -32,39 +32,34 @@ strict_mode = true
 time_zone = "Europe/London"
 
 # REQUIRED: Either an identity_map or domain (preferably both)
-# Maps unknown users to 'svnusername <svnusername@yourcompany.com>'
-domain = 'yourcompany.com'
+# Maps unknown users to 'svnusername <svnusername@example.com>'
+domain = 'example.com'
 
 # Map SVN usernames to Git Authors in the format 'Full User Name <email@domain.com>'
 [identity_map]
-jsmith = 'John Smith <jsmith@yourcompany.com>'
+jsmith = 'John Smith <jsmith@acme.com>'
+
+# Which git commit new branches should originate from. You can refer t
+# svn revisions by prefixing them with ':'
+# see https://git-scm.com/docs/git-fast-import#_from for details.
+[branch_origin]
+"feature_branch" = ":1234"
 
 # The rules to apply to all files in all commits. The first matched rule (from first to
 # last) will apply, all subsequent rules will be ignored.
 
-# The fast-import 'from' of the first commit to a given branch. See
-# https://git-scm.com/docs/git-fast-import#_from use mark references
-# to refer to unambiguous svn revisions (e.g. ":1234" for r1234)
-[branch_origin]
-"feature_branch" = ":1234"
-
 [[rule]]
-
 # REQUIRED: Regex to match SVN path, with standard regex captures.
 # Captures:            v \1           v \2
 svn_path = '/projects/([^/]+)/branch/([^/]+)/'
-
 # Path to an existing git repository. If no repository is provided the committed files
 # will be ignored. Regex replacements can be used here.
 repository = 'my_repos/\1'
-
 # The git branch to map to. Required if repository is provided. Regex replacements can
 # be used here.
 branch = 'svn_\2'
-
 # The git path to map to, can be blank. Anything remaining not captured in svn_path
 # will be appended as the git path.
-
 git_path = '\1_src/'
 # Optional min and max revisions (inclusive) this rule should apply to.
 min_revision = 1
@@ -72,11 +67,11 @@ max_revision = 1000
 
 # Basic git-svn like example usage
 [[rule]]
-svn_path = '/trunk'
+svn_path = '/trunk/'
 repository = 'repo'
 branch = 'main'
 
 [[rule]]
-svn_path = '/branches/([^/]+)'
+svn_path = '/branches/([^/]+)/'
 repository = 'repo'
 branch = '\1'
