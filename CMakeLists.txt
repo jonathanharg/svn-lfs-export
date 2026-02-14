@@ -12,7 +12,6 @@ find_package(APR REQUIRED)
 find_package(Subversion REQUIRED)
 
 find_package(argparse CONFIG REQUIRED)
-find_package(Boost REQUIRED COMPONENTS process)
 find_package(date CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(libgit2 CONFIG REQUIRED)
@@ -48,7 +47,6 @@ target_link_libraries(
 	svn-lfs-export
 	PUBLIC APR::APR
 		   argparse::argparse
-		   Boost::process
 		   date::date
 		   date::date-tz
 		   fmt::fmt

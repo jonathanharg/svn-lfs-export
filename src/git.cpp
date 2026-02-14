@@ -140,7 +140,7 @@ std::optional<std::string> Git::GetBranchOrigin(const std::string& repo, const s
 		return std::string("");
 	}
 
-	if (!seenRepo && !mWriter.DoesRepoExist(repo))
+	if (!seenRepo && mWriter.IsRepoEmpty(repo))
 	{
 		// Omit the `from`, this is the first commit to a new repository
 		// so create a commit with no ancestor.
@@ -330,12 +330,10 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 		const std::string& repo = file.git.repo;
 		const std::string& branch = file.git.branch;
 
+		FILE* output = mWriter.GetFastImportStream(repo);
+
 		assert(!repo.empty());
 		assert(!branch.empty());
-
-		std::string output;
-		auto outputIt = std::back_inserter(output);
-		// TODO: output.reserve() based on some heuristic
 
 		if (repo != lastRepo || branch != lastBranch)
 		{
@@ -358,8 +356,8 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 				);
 			}
 
-			fmt::format_to(
-				outputIt,
+			fmt::print(
+				output,
 				"commit refs/heads/{}\n"
 				"{}"
 				"original-oid r{}\n"
@@ -377,8 +375,8 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 			{
 				// We don't need to be writing this for every commit, just the first to each repo
 				// Oh well, it's easier to do it this way for now
-				fmt::format_to(
-					outputIt,
+				fmt::print(
+					output,
 					"M {} inline .gitattributes\n"
 					"data {}\n"
 					"{}\n",
@@ -389,7 +387,7 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 
 		if (file.svn->changeType == svn::File::Change::Delete)
 		{
-			fmt::format_to(outputIt, "D {}\n", file.git.path);
+			fmt::print(output, "D {}\n", file.git.path);
 		}
 		else if (!file.svn->isDirectory)
 		{
@@ -416,15 +414,14 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 				outputFile = symlinkPath;
 			}
 
-			fmt::format_to(
-				outputIt,
+			fmt::print(
+				output,
 				"M {} inline {}\n"
 				"data {}\n"
 				"{}\n",
 				static_cast<int>(mode), file.git.path, outputFile.size(), outputFile
 			);
 		}
-		mWriter.WriteToFastImport(repo, output);
 	}
 
 	return {};

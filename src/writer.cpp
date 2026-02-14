@@ -1,47 +1,82 @@
+#include "subprocess.h"
 #include "utils.hpp"
 #include "writer.hpp"
 
-#include <boost/asio.hpp>
-#include <boost/process.hpp>
-#include <boost/system.hpp>
+#include <fmt/ranges.h>
 #include <git2.h>
 
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <ranges>
 #include <sstream>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
-namespace process = boost::process;
-namespace asio = boost::asio;
-
-FastImportProcess::FastImportProcess(std::filesystem::path repoPath) :
-	pipe(context),
-	process(
-		context, sGitExe,
-		{"fast-import", "--export-marks=.git/svn_lfs_export_marks",
-		 "--import-marks-if-exists=.git/svn_lfs_export_marks"},
-		process::process_start_dir{std::move(repoPath)},
-		process::process_stdio{.in = pipe, .out = stdout, .err = stdout}
-	) {};
-
-void Writer::WriteToFastImport(std::string_view repo, std::string_view content)
+void Writer::StartProcess(const std::string& repo)
 {
-	std::string repoStr{repo};
-	if (!mRunningProcesses.contains(repoStr))
+	auto rootPath = std::filesystem::current_path();
+	auto repoPath = rootPath / repo;
+
+	chdir(repoPath.c_str());
+
+	const std::array args{
+		"git",
+		"fast-import",
+		"--export-marks=./.git/svn_lfs_export_marks",
+		"--import-marks-if-exists=./.git/svn_lfs_export_marks",
+		static_cast<const char*>(nullptr),
+	};
+	int result = subprocess_create(
+		args.data(), subprocess_option_search_user_path, &mRunningProcesses[repo]
+	);
+	if (result != 0)
 	{
-		if (!DoesRepoExist(repoStr))
-		{
-			CreateRepo(repoStr);
-		}
-		mRunningProcesses.emplace(repoStr, std::filesystem::current_path() / repo);
+		Log("ERROR: Could not create git fast-import subprocess in {:?}", repoPath.c_str());
+		std::exit(EXIT_FAILURE);
 	}
 
-	asio::write(mRunningProcesses.at(repoStr).pipe, asio::buffer(content));
+	chdir(rootPath.c_str());
+
+	// Load current branches
+
+	git_repository* gitRepo = nullptr;
+	git_repository_open(&gitRepo, repoPath.c_str());
+
+	git_branch_iterator* iter = nullptr;
+	git_branch_iterator_new(&iter, gitRepo, GIT_BRANCH_LOCAL);
+
+	git_reference* ref = nullptr;
+	git_branch_t type;
+
+	while (git_branch_next(&ref, &type, iter) == 0)
+	{
+		const char* name = nullptr;
+		git_branch_name(&name, ref);
+
+		mRepoBranches[repo].push_back(name);
+
+		git_reference_free(ref);
+	}
+
+	git_branch_iterator_free(iter);
+	git_repository_free(gitRepo);
+}
+
+FILE* Writer::GetFastImportStream(const std::string& repo)
+{
+	if (!mRunningProcesses.contains(repo))
+	{
+		if (!DoesRepoExist(repo))
+		{
+			CreateRepo(repo);
+		}
+		StartProcess(repo);
+	}
+	return subprocess_stdin(&mRunningProcesses[repo]);
 }
 
 std::filesystem::path Writer::GetLFSRoot(std::string_view repo)
@@ -49,42 +84,14 @@ std::filesystem::path Writer::GetLFSRoot(std::string_view repo)
 	return std::filesystem::current_path() / repo / ".git";
 }
 
-bool Writer::DoesBranchAlreadyExistOnDisk(std::string_view repo, std::string_view branch)
+bool Writer::DoesBranchAlreadyExistOnDisk(const std::string& repo, const std::string& branch)
 {
-	if (!DoesRepoExist(repo))
+	if (!mRepoBranches.contains(repo))
 	{
 		return false;
 	}
 
-	asio::io_context ctx;
-	asio::readable_pipe pipe{ctx};
-	process::process_start_dir startDir{std::filesystem::current_path() / repo};
-
-	process::process gitProcess(
-		ctx, sGitExe, {"for-each-ref", "--format=%(refname:short)", "refs/heads"}, startDir,
-		process::process_stdio{.in = {}, .out = pipe, .err = {}}
-	);
-
-	gitProcess.wait();
-
-	std::string output;
-	boost::system::error_code error;
-
-	asio::read(pipe, asio::dynamic_buffer(output), error);
-	assert(!error || (error == asio::error::eof));
-
-	std::stringstream outputStrStream(output);
-	std::string segment;
-	std::vector<std::string> branchList;
-
-	while (std::getline(outputStrStream, segment, '\n'))
-	{
-		if (segment == branch)
-		{
-			return true;
-		}
-	}
-	return false;
+	return std::ranges::find(mRepoBranches[repo], branch) != mRepoBranches[repo].end();
 }
 
 bool Writer::DoesRepoExist(std::string_view repo)
@@ -107,6 +114,20 @@ bool Writer::DoesRepoExist(std::string_view repo)
 	return true;
 }
 
+bool Writer::IsRepoEmpty(std::string_view repo)
+{
+	std::filesystem::path path = std::filesystem::current_path() / repo;
+	int err = git_repository_open(nullptr, path.c_str());
+
+	git_repository* gitRepository = nullptr;
+	git_repository_open(&gitRepository, ".");
+
+	bool isEmpty = git_repository_is_empty(gitRepository);
+
+	git_repository_free(gitRepository);
+	return isEmpty;
+}
+
 void Writer::CreateRepo(std::string_view repo)
 {
 	git_repository* repoPtr = nullptr;
@@ -125,9 +146,8 @@ void Writer::CreateRepo(std::string_view repo)
 
 Writer::~Writer()
 {
-	for (auto& [_, fastImportProcess] : mRunningProcesses)
+	for (auto& [_, process] : mRunningProcesses)
 	{
-		fastImportProcess.pipe.close();
-		fastImportProcess.process.wait();
+		subprocess_destroy(&process);
 	}
 }

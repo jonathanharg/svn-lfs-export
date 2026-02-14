@@ -1,22 +1,11 @@
 #pragma once
-#include <boost/asio.hpp>
-#include <boost/process.hpp>
+#include "subprocess.h"
 
 #include <filesystem>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
-
-static const std::filesystem::path sGitExe = boost::process::environment::find_executable("git");
-
-struct FastImportProcess
-{
-	explicit FastImportProcess(std::filesystem::path repoPath);
-	boost::asio::io_context context;
-	boost::asio::writable_pipe pipe;
-	boost::process::process process;
-};
 
 class Writer
 {
@@ -30,14 +19,16 @@ public:
 	Writer(Writer&&) = delete;
 	Writer& operator=(Writer&&) = delete;
 
-	void WriteToFastImport(std::string_view repo, std::string_view content);
+	FILE* GetFastImportStream(const std::string& repo);
 	std::filesystem::path GetLFSRoot(std::string_view repo);
-	bool DoesBranchAlreadyExistOnDisk(std::string_view repo, std::string_view branch);
-	bool DoesRepoExist(std::string_view repo);
+	bool DoesBranchAlreadyExistOnDisk(const std::string& repo, const std::string& branch);
+	bool IsRepoEmpty(std::string_view repo);
 
 private:
+	bool DoesRepoExist(std::string_view repo);
 	void CreateRepo(std::string_view repo);
-	void StartProcess(std::string_view repo);
+	void StartProcess(const std::string& repo);
 
-	std::unordered_map<std::string, FastImportProcess> mRunningProcesses;
+	std::unordered_map<std::string, subprocess_s> mRunningProcesses;
+	std::unordered_map<std::string, std::vector<std::string>> mRepoBranches;
 };

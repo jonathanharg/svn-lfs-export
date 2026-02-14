@@ -1,7 +1,6 @@
 {
   "dependencies": [
     "argparse",
-    "boost-process",
     "date",
     "fmt",
     "libgit2",
