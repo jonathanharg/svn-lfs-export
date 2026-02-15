@@ -78,7 +78,7 @@ public:
 	Revision GetRevision(long int revision);
 
 private:
-	Pool mPool;
+	Pool mRepositoryPool;
 	svn_repos_t* mRepos = nullptr;
 	svn_fs_t* mFs = nullptr;
 };
@@ -101,7 +101,7 @@ private:
 	std::string mDate;
 	std::vector<File> mFiles;
 
-	svn::Pool mRootPool;
+	svn::Pool mRevisionPool;
 
 	friend class Repository;
 };

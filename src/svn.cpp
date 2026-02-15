@@ -12,7 +12,6 @@
 #include <svn_repos.h>
 #include <svn_string.h>
 #include <svn_types.h>
-#include <svn_types_impl.h>
 
 #include <cassert>
 #include <cstddef>
@@ -74,9 +73,8 @@ void WalkAllChildren(
 
 Repository::Repository(const std::string& path)
 {
-	Pool scratchPool;
-
-	const svn_error_t* err = svn_repos_open3(&mRepos, path.c_str(), nullptr, mPool, scratchPool);
+	const svn_error_t* err =
+		svn_repos_open3(&mRepos, path.c_str(), nullptr, mRepositoryPool, mRepositoryPool);
 	assert(!err);
 	mFs = svn_repos_fs(mRepos);
 
@@ -85,10 +83,10 @@ Repository::Repository(const std::string& path)
 
 long int Repository::GetYoungestRevision()
 {
-	Pool scratchPool;
+	Pool pool;
 	long int youngestRev = 1;
 
-	const svn_error_t* err = svn_fs_youngest_rev(&youngestRev, mFs, scratchPool);
+	const svn_error_t* err = svn_fs_youngest_rev(&youngestRev, mFs, pool);
 	assert(!err);
 
 	return youngestRev;
@@ -104,16 +102,14 @@ Revision::Revision(svn_fs_t* repositoryFs, long int revision) :
 {
 	svn_error_t* err = nullptr;
 
-	Pool resultPool;
-	Pool scratchPool;
-
 	svn_fs_root_t* revisionFs = nullptr;
-	err = svn_fs_revision_root(&revisionFs, repositoryFs, mRevNum, mRootPool);
+	err = svn_fs_revision_root(&revisionFs, repositoryFs, mRevNum, mRevisionPool);
 	assert(!err);
 
 	apr_hash_t* revProps = nullptr;
-	err =
-		svn_fs_revision_proplist2(&revProps, repositoryFs, mRevNum, false, resultPool, scratchPool);
+	err = svn_fs_revision_proplist2(
+		&revProps, repositoryFs, mRevNum, false, mRevisionPool, mRevisionPool
+	);
 	assert(!err);
 
 	static constexpr const char* kEpoch = "1970-01-01T00:00:00Z";
@@ -122,7 +118,7 @@ Revision::Revision(svn_fs_t* repositoryFs, long int revision) :
 	mDate = HashGet(revProps, SVN_PROP_REVISION_DATE).value_or(kEpoch);
 
 	svn_fs_path_change_iterator_t* changesIt = nullptr;
-	err = svn_fs_paths_changed3(&changesIt, revisionFs, resultPool, scratchPool);
+	err = svn_fs_paths_changed3(&changesIt, revisionFs, mRevisionPool, mRevisionPool);
 	assert(!err);
 
 	svn_fs_path_change3_t* change = nullptr;
@@ -147,7 +143,7 @@ Revision::Revision(svn_fs_t* repositoryFs, long int revision) :
 		if (file.copiedFrom.has_value() && file.isDirectory)
 		{
 			WalkAllChildren(
-				revisionFs, path.c_str(), resultPool, [&](const char* subFilePath)
+				revisionFs, path.c_str(), mRevisionPool, [&](const char* subFilePath)
 				{ mFiles.emplace_back(revisionFs, subFilePath, false); }
 			);
 		}
@@ -164,10 +160,10 @@ File::File(svn_fs_root_t* revisionFs, const std::string& path, bool isDirectory)
 	mRevisionFs(revisionFs)
 {
 	svn_error_t* err = nullptr;
-	svn::Pool fileMetadataPool;
+	svn::Pool pool;
 
 	apr_hash_t* props = nullptr;
-	err = svn_fs_node_proplist(&props, revisionFs, path.c_str(), fileMetadataPool);
+	err = svn_fs_node_proplist(&props, revisionFs, path.c_str(), pool);
 	if (err)
 	{
 		svn_error_clear(err);
@@ -175,8 +171,7 @@ File::File(svn_fs_root_t* revisionFs, const std::string& path, bool isDirectory)
 
 	if (props)
 	{
-		for (apr_hash_index_t* hi = apr_hash_first(fileMetadataPool, props); hi;
-			 hi = apr_hash_next(hi))
+		for (apr_hash_index_t* hi = apr_hash_first(pool, props); hi; hi = apr_hash_next(hi))
 		{
 			const void* key = nullptr;
 			void* val = nullptr;
@@ -208,7 +203,7 @@ File::File(svn_fs_root_t* revisionFs, const std::string& path, bool isDirectory)
 	}
 
 	svn_filesize_t fileSize = 0;
-	err = svn_fs_file_length(&fileSize, mRevisionFs, path.c_str(), fileMetadataPool);
+	err = svn_fs_file_length(&fileSize, mRevisionFs, path.c_str(), pool);
 	if (!err)
 	{
 		size = static_cast<size_t>(fileSize);
@@ -227,10 +222,10 @@ std::unique_ptr<char[]> File::GetContents() const
 		return nullptr;
 	}
 	const svn_error_t* err = nullptr;
-	svn::Pool filePool;
+	svn::Pool pool;
 
 	svn_stream_t* contentStream = nullptr;
-	err = svn_fs_file_contents(&contentStream, mRevisionFs, path.c_str(), filePool);
+	err = svn_fs_file_contents(&contentStream, mRevisionFs, path.c_str(), pool);
 	assert(!err);
 
 	std::unique_ptr<char[]> fileBuffer = std::make_unique<char[]>(size);
