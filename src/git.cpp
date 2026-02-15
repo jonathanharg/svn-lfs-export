@@ -77,10 +77,10 @@ std::string Git::GetSha256(const std::string_view input)
 	return result;
 }
 
-std::string Git::WriteLFSFile(const std::string_view input, const std::string_view repo)
+std::string Git::WriteLFSFile(const std::string_view input)
 {
 	std::string hash = GetSha256(input);
-	std::filesystem::path root = mWriter.GetLFSRoot(repo);
+	std::filesystem::path root = mWriter.GetLFSRoot();
 	std::filesystem::path path =
 		root / "lfs" / "objects" / hash.substr(0, 2) / hash.substr(2, 2) / hash;
 
@@ -129,10 +129,9 @@ std::string Git::GetTime(const std::string& svnTime)
 	return fmt::format("{} {}", unixEpoch, formattedOffset);
 }
 
-std::optional<std::string> Git::GetBranchOrigin(const std::string& repo, const std::string& branch)
+std::optional<std::string> Git::GetBranchOrigin(const std::string& branch)
 {
-	const bool seenRepo = mSeenRepoBranches.contains(repo);
-	const bool seenBranch = seenRepo && mSeenRepoBranches.at(repo).contains(branch);
+	const bool seenBranch = mSeenBranches.contains(branch);
 
 	if (seenBranch)
 	{
@@ -140,14 +139,16 @@ std::optional<std::string> Git::GetBranchOrigin(const std::string& repo, const s
 		return std::string("");
 	}
 
-	if (!seenRepo && mWriter.IsRepoEmpty(repo))
+	static bool writtenFirstCommit = false;
+	if (!writtenFirstCommit && mWriter.IsRepoEmpty())
 	{
+		writtenFirstCommit = true;
 		// Omit the `from`, this is the first commit to a new repository
 		// so create a commit with no ancestor.
 		return std::string("");
 	}
 
-	if (mWriter.DoesBranchAlreadyExistOnDisk(repo, branch))
+	if (mWriter.DoesBranchAlreadyExistOnDisk(branch))
 	{
 		// Load from disk with ^0
 		return fmt::format("from refs/heads/{}^0\n", branch);
@@ -228,10 +229,6 @@ std::optional<Git::Mapping> Git::MapPath(const long int rev, const std::string_v
 		Mapping result;
 
 		rule.svnPath->Rewrite(
-			&result.repo, rule.gitRepository, capturesStrings.data(), captureGroupsWith0th
-		);
-
-		rule.svnPath->Rewrite(
 			&result.branch, rule.gitBranch, capturesStrings.data(), captureGroupsWith0th
 		);
 
@@ -278,15 +275,7 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 	{
 		const svn::File* svn;
 		Mapping git;
-		auto operator<=>(const MappedFile& other) const
-		{
-			auto cmp = git.repo <=> other.git.repo;
-			if (cmp != 0)
-			{
-				return cmp;
-			}
-			return git.branch <=> other.git.branch;
-		}
+		auto operator<=>(const MappedFile& other) const { return git.branch <=> other.git.branch; }
 	};
 	std::vector<MappedFile> mappings;
 
@@ -317,41 +306,34 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 
 	std::sort(mappings.begin(), mappings.end());
 
-	std::string lastRepo;
 	std::string lastBranch;
 
 	// One SVN revision maps to multiple different git commits
 	const bool isMultiCommit =
-		!mappings.empty() && (mappings.front().git.repo != mappings.back().git.repo ||
-							  mappings.front().git.branch != mappings.back().git.branch);
+		!mappings.empty() && (mappings.front().git.branch != mappings.back().git.branch);
 
 	for (const auto& file : mappings)
 	{
-		const std::string& repo = file.git.repo;
 		const std::string& branch = file.git.branch;
 
-		FILE* output = mWriter.GetFastImportStream(repo);
+		FILE* output = mWriter.GetFastImportStream();
 
-		assert(!repo.empty());
-		assert(!branch.empty());
-
-		if (repo != lastRepo || branch != lastBranch)
+		if (branch != lastBranch)
 		{
-			// We've moved onto a new branch/repository, start a new commit!
-			lastRepo = repo;
+			// We've moved onto a new branch, start a new commit!
 			lastBranch = branch;
 
 			// Only mark unambiguous commits
 			const std::string mark =
 				!isMultiCommit ? fmt::format("mark :{}\n", rev.GetNumber()) : "";
 
-			const auto from = GetBranchOrigin(repo, branch);
+			const auto from = GetBranchOrigin(branch);
 			if (!from.has_value())
 			{
 				return std::unexpected(
 					fmt::format(
-						"ERROR: Unknown branch origin for r{} at {:?} (for git branch {}/{}). Provide an origin in the [branch_origin] section of your config.toml file.",
-						rev.GetNumber(), file.svn->path, repo, branch
+						"ERROR: Unknown branch origin for r{} at {:?} (for git branch {:?}). Provide an origin in the [branch_origin] section of your config.toml file.",
+						rev.GetNumber(), file.svn->path, branch
 					)
 				);
 			}
@@ -368,7 +350,7 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 				branch, mark, rev.GetNumber(), committer, time, message.length(), message, *from
 			);
 
-			mSeenRepoBranches[repo].insert(branch);
+			mSeenBranches.insert(branch);
 
 			std::string attributes = GetGitAttributesFile();
 			if (attributes.length() > 0)
@@ -399,7 +381,7 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 
 			if (file.git.lfs)
 			{
-				lfsPointer = WriteLFSFile(svnFile, file.git.repo);
+				lfsPointer = WriteLFSFile(svnFile);
 				outputFile = lfsPointer;
 			}
 

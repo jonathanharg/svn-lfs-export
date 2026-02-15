@@ -4,14 +4,12 @@
 #include <cstdio>
 #include <filesystem>
 #include <string>
-#include <string_view>
-#include <unordered_map>
 #include <vector>
 
 class Writer
 {
 public:
-	Writer() = default;
+	Writer(const std::string& repo);
 	~Writer();
 
 	Writer(const Writer&) = delete;
@@ -20,16 +18,15 @@ public:
 	Writer(Writer&&) = delete;
 	Writer& operator=(Writer&&) = delete;
 
-	FILE* GetFastImportStream(const std::string& repo);
-	std::filesystem::path GetLFSRoot(std::string_view repo);
-	bool DoesBranchAlreadyExistOnDisk(const std::string& repo, const std::string& branch);
-	bool IsRepoEmpty(std::string_view repo);
+	FILE* GetFastImportStream();
+	std::filesystem::path GetLFSRoot() { return mGitRootPath; };
+	bool DoesBranchAlreadyExistOnDisk(const std::string& branch);
+	bool IsRepoEmpty() const { return mIsEmpty; };
 
 private:
-	bool DoesRepoExist(std::string_view repo);
-	void CreateRepo(std::string_view repo);
-	void StartProcess(const std::string& repo);
-
-	std::unordered_map<std::string, subprocess_s> mRunningProcesses;
-	std::unordered_map<std::string, std::vector<std::string>> mRepoBranches;
+	bool mIsEmpty = false;
+	subprocess_s mProcess{};
+	std::filesystem::path mRepoPath;
+	std::filesystem::path mGitRootPath;
+	std::vector<std::string> mExistingBranches;
 };

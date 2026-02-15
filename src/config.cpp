@@ -43,16 +43,25 @@ std::expected<Config, std::string> Config::Parse(const toml::table& root)
 	result.timezone = root["time_zone"].value_or(kDefaultTimeZone);
 	result.commitMessage = root["commit_message"].value_or(kDefaultCommitMessage);
 
-	const auto repositoryValue = root["svn_repository"].value<std::string>();
+	const auto svnRepositoryValue = root["svn_repository"].value<std::string>();
+	const auto gitRepositoryValue = root["git_repository"].value<std::string>();
 
-	if (!repositoryValue)
+	if (!svnRepositoryValue)
 	{
 		return std::unexpected(
 			"ERROR: No SVN repository path, provide a path to a valid on-disk SVN repository."
 		);
 	}
 
-	result.svnRepo = *repositoryValue;
+	if (!gitRepositoryValue)
+	{
+		return std::unexpected(
+			"ERROR: No git repository path, provide a path to where the git repository exists, or should be placed."
+		);
+	}
+
+	result.svnRepo = *svnRepositoryValue;
+	result.gitRepo = *gitRepositoryValue;
 
 	const toml::table* identityTable = root["identity_map"].as_table();
 
@@ -142,7 +151,6 @@ std::expected<Config, std::string> Config::Parse(const toml::table& root)
 		const toml::table& table = *rule.as_table();
 
 		const auto svnPath = table["svn_path"].value<std::string_view>();
-		const auto repository = table["repository"].value<std::string>();
 		const auto branch = table["branch"].value<std::string>();
 		const std::string gitPath = table["git_path"].value_or("");
 
@@ -150,24 +158,14 @@ std::expected<Config, std::string> Config::Parse(const toml::table& root)
 		{
 			return std::unexpected("ERROR: Provide an svn_path for each rule.");
 		}
-		if (repository.has_value() != branch.has_value())
-		{
-			return std::unexpected(
-				fmt::format(
-					"ERROR: For {} both a repository and a branch must be provided, or neither should be provided .",
-					*svnPath
-				)
-			);
-		}
 
-		const bool ignore = !repository.has_value() || !branch.has_value();
+		const bool ignore = !branch.has_value();
 
 		const auto minRev = table["min_revision"].value<long int>();
 		const auto maxRev = table["max_revision"].value<long int>();
 
 		result.rules.emplace_back(
-			ignore, std::make_unique<RE2>(*svnPath), repository.value_or(""), branch.value_or(""),
-			gitPath, minRev, maxRev
+			ignore, std::make_unique<RE2>(*svnPath), branch.value_or(""), gitPath, minRev, maxRev
 		);
 	}
 
@@ -266,27 +264,10 @@ std::expected<void, std::string> Config::IsValid() const
 			);
 		}
 
-		if (rule.gitRepository.empty() != rule.gitBranch.empty())
-		{
-			return std::unexpected("ERROR: Provide an output repository and branch, or neither");
-		}
-
 		std::string error;
 		static constexpr const char* errorMsg =
 			"ERROR: Could not rewrite {:?} with the regex {:?} - {}";
 
-		if (!rule.skipRevision && !rule.svnPath->CheckRewriteString(rule.gitRepository, &error))
-		{
-			return std::unexpected(
-				fmt::format(errorMsg, rule.gitRepository, rule.svnPath->pattern(), error)
-			);
-		}
-		if (!rule.skipRevision && !rule.svnPath->CheckRewriteString(rule.gitRepository, &error))
-		{
-			return std::unexpected(
-				fmt::format(errorMsg, rule.gitRepository, rule.svnPath->pattern(), error)
-			);
-		}
 		if (!rule.svnPath->CheckRewriteString(rule.gitFilePath, &error))
 		{
 			return std::unexpected(

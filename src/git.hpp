@@ -16,7 +16,6 @@ public:
 	struct Mapping
 	{
 		bool skip = false;
-		std::string repo;
 		std::string branch;
 		std::string path;
 		bool lfs = false;
@@ -34,11 +33,11 @@ public:
 
 	std::string GetSha256(const std::string_view inputStr);
 
-	std::string WriteLFSFile(const std::string_view input, const std::string_view repo);
+	std::string WriteLFSFile(const std::string_view input);
 
 	std::string GetGitAttributesFile();
 
-	std::optional<std::string> GetBranchOrigin(const std::string& repo, const std::string& branch);
+	std::optional<std::string> GetBranchOrigin(const std::string& branch);
 
 	std::optional<Mapping> MapPath(const long int rev, const std::string_view& path);
 
@@ -47,5 +46,5 @@ public:
 private:
 	const Config& mConfig;
 	Writer& mWriter;
-	std::unordered_map<std::string, std::unordered_set<std::string>> mSeenRepoBranches;
+	std::unordered_set<std::string> mSeenBranches;
 };

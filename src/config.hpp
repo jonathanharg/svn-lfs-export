@@ -19,8 +19,6 @@ struct Rule
 	bool skipRevision;
 	/// Regular expression to match input SVN path
 	std::unique_ptr<RE2> svnPath;
-	/// Output git repository
-	std::string gitRepository;
 	/// Output git branch
 	std::string gitBranch;
 	/// Output git file location. Can be empty. To be used as a prefix for files.
@@ -49,6 +47,7 @@ struct Config
 
 	bool strictMode;
 	std::string svnRepo;
+	std::string gitRepo;
 	std::optional<std::string> domain;
 	std::string timezone;
 	std::string commitMessage;

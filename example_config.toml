@@ -1,5 +1,7 @@
 # REQUIRED: File path to the on-disk SVN repository
 svn_repository = 'path/to/repository'
+# REQUIRED: File path to where the git repository exists, or should be placed
+git_repository = 'path/to/repository'
 
 # Git pathspec to match LFS file paths IN GIT. In other words, these expressions
 # will be matched against the final file paths in the git repository (not the
@@ -46,17 +48,14 @@ jsmith = 'John Smith <jsmith@acme.com>'
 "feature_branch" = ":1234"
 
 # The rules to apply to all files in all commits. The first matched rule (from first to
-# last) will apply, all subsequent rules will be ignored.
+# last) will apply, any subsequent rules will be ignored.
 
 [[rule]]
 # REQUIRED: Regex to match SVN path, with standard regex captures.
 # Captures:            v \1           v \2
 svn_path = '/projects/([^/]+)/branch/([^/]+)/'
-# Path to an existing git repository. If no repository is provided the committed files
-# will be ignored. Regex replacements can be used here.
-repository = 'my_repos/\1'
 # The git branch to map to. Required if repository is provided. Regex replacements can
-# be used here.
+# be used here. If no branch is provided any matched files will be ignored.
 branch = 'svn_\2'
 # The git path to map to, can be blank. Anything remaining not captured in svn_path
 # will be appended as the git path.

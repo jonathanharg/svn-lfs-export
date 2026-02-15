@@ -12,16 +12,51 @@
 #include <cstdlib>
 #include <filesystem>
 #include <string>
-#include <string_view>
 #include <unistd.h>
 #include <vector>
 
-void Writer::StartProcess(const std::string& repo)
+Writer::Writer(const std::string& repo) :
+	mRepoPath(std::filesystem::weakly_canonical(repo))
 {
-	auto rootPath = std::filesystem::current_path();
-	auto repoPath = rootPath / repo;
+	if (!std::filesystem::exists(mRepoPath))
+	{
+		std::filesystem::create_directories(mRepoPath);
+	}
 
-	chdir(repoPath.c_str());
+	chdir(mRepoPath.c_str());
+
+	git_repository* gitRepo = nullptr;
+	int err = git_repository_open(&gitRepo, mRepoPath.c_str());
+
+	if (err == GIT_ENOTFOUND)
+	{
+		git_repository_init(&gitRepo, mRepoPath.c_str(), false);
+		mIsEmpty = true;
+		mGitRootPath = mRepoPath / ".git";
+	}
+	else
+	{
+		mGitRootPath = git_repository_path(gitRepo);
+		mIsEmpty = git_repository_is_empty(gitRepo);
+
+		git_branch_iterator* branchIt = nullptr;
+		git_branch_iterator_new(&branchIt, gitRepo, GIT_BRANCH_LOCAL);
+
+		git_reference* ref = nullptr;
+		git_branch_t type{};
+
+		while (git_branch_next(&ref, &type, branchIt) == 0)
+		{
+			const char* name = nullptr;
+			git_branch_name(&name, ref);
+
+			mExistingBranches.emplace_back(name);
+
+			git_reference_free(ref);
+		}
+		git_branch_iterator_free(branchIt);
+	}
+	git_repository_free(gitRepo);
 
 	const std::array args{
 		"git",
@@ -30,124 +65,25 @@ void Writer::StartProcess(const std::string& repo)
 		"--import-marks-if-exists=./.git/svn_lfs_export_marks",
 		static_cast<const char*>(nullptr),
 	};
-	int result = subprocess_create(
-		args.data(), subprocess_option_search_user_path, &mRunningProcesses[repo]
-	);
+	int result = subprocess_create(args.data(), subprocess_option_search_user_path, &mProcess);
 	if (result != 0)
 	{
-		Log("ERROR: Could not create git fast-import subprocess in {:?}", repoPath.c_str());
+		Log("ERROR: Could not create git fast-import subprocess in {:?}", mRepoPath.c_str());
 		std::exit(EXIT_FAILURE);
 	}
-
-	chdir(rootPath.c_str());
-
-	// Load current branches
-
-	git_repository* gitRepo = nullptr;
-	git_repository_open(&gitRepo, repoPath.c_str());
-
-	git_branch_iterator* iter = nullptr;
-	git_branch_iterator_new(&iter, gitRepo, GIT_BRANCH_LOCAL);
-
-	git_reference* ref = nullptr;
-	git_branch_t type{};
-
-	while (git_branch_next(&ref, &type, iter) == 0)
-	{
-		const char* name = nullptr;
-		git_branch_name(&name, ref);
-
-		mRepoBranches[repo].emplace_back(name);
-
-		git_reference_free(ref);
-	}
-
-	git_branch_iterator_free(iter);
-	git_repository_free(gitRepo);
 }
 
-FILE* Writer::GetFastImportStream(const std::string& repo)
+FILE* Writer::GetFastImportStream()
 {
-	if (!mRunningProcesses.contains(repo))
-	{
-		if (!DoesRepoExist(repo))
-		{
-			CreateRepo(repo);
-		}
-		StartProcess(repo);
-	}
-	return subprocess_stdin(&mRunningProcesses[repo]);
+	return subprocess_stdin(&mProcess);
 }
 
-std::filesystem::path Writer::GetLFSRoot(std::string_view repo)
+bool Writer::DoesBranchAlreadyExistOnDisk(const std::string& branch)
 {
-	return std::filesystem::current_path() / repo / ".git";
-}
-
-bool Writer::DoesBranchAlreadyExistOnDisk(const std::string& repo, const std::string& branch)
-{
-	if (!mRepoBranches.contains(repo))
-	{
-		return false;
-	}
-
-	return std::ranges::find(mRepoBranches[repo], branch) != mRepoBranches[repo].end();
-}
-
-bool Writer::DoesRepoExist(std::string_view repo)
-{
-	std::filesystem::path path = std::filesystem::current_path() / repo;
-	int err = git_repository_open(nullptr, path.c_str());
-
-	if (err == GIT_ENOTFOUND)
-	{
-		return false;
-	}
-
-	if (err != GIT_OK)
-	{
-		Log("Unexpected error opening Git repository {:?}: {}", path.c_str(),
-			git_error_last()->message);
-		std::exit(EXIT_FAILURE);
-	}
-
-	return true;
-}
-
-bool Writer::IsRepoEmpty(std::string_view repo)
-{
-	std::filesystem::path path = std::filesystem::current_path() / repo;
-	int err = git_repository_open(nullptr, path.c_str());
-
-	git_repository* gitRepository = nullptr;
-	git_repository_open(&gitRepository, ".");
-
-	bool isEmpty = git_repository_is_empty(gitRepository);
-
-	git_repository_free(gitRepository);
-	return isEmpty;
-}
-
-void Writer::CreateRepo(std::string_view repo)
-{
-	git_repository* repoPtr = nullptr;
-	std::filesystem::path path = std::filesystem::current_path() / repo;
-
-	int err = git_repository_init(&repoPtr, path.c_str(), false);
-	git_repository_free(repoPtr);
-
-	if (err != GIT_OK)
-	{
-		Log("Unexpected error creating Git repository {:?}: {}", path.c_str(),
-			git_error_last()->message);
-		std::exit(EXIT_FAILURE);
-	}
+	return std::ranges::find(mExistingBranches, branch) != mExistingBranches.end();
 }
 
 Writer::~Writer()
 {
-	for (auto& [_, process] : mRunningProcesses)
-	{
-		subprocess_destroy(&process);
-	}
+	subprocess_destroy(&mProcess);
 }

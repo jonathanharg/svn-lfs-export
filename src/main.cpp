@@ -108,7 +108,7 @@ int main(int argc, char* argv[])
 		return EXIT_FAILURE;
 	}
 
-	Writer writer;
+	Writer writer(config.gitRepo);
 	Git git(config, writer);
 
 	Log("Running from r{} to r{}", startRev, stopRev);
