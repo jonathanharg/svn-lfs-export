@@ -70,6 +70,8 @@ int main(int argc, char* argv[])
 	}
 
 	LibGit2Init libGit;
+	LibAprInit libApr;
+
 	const auto maybeConfig = Config::FromFile(configPath);
 
 	if (!maybeConfig)
@@ -80,7 +82,9 @@ int main(int argc, char* argv[])
 
 	const Config& config = maybeConfig.value();
 
-	LibAprInit libApr;
+	Writer writer(config.gitRepo);
+	Git git(config, writer);
+
 	auto repository = svn::Repository(config.svnRepo);
 
 	long int youngestRev = repository.GetYoungestRevision();
@@ -91,7 +95,7 @@ int main(int argc, char* argv[])
 
 	if (!revString.has_value())
 	{
-		startRev = 1;
+		startRev = writer.GetLastWrittenRevision();
 		stopRev = youngestRev;
 	}
 	else if (RE2::FullMatch(*revString, "(\\d+):(\\d+)", &startRev, &stopRev))
@@ -108,10 +112,9 @@ int main(int argc, char* argv[])
 		return EXIT_FAILURE;
 	}
 
-	Writer writer(config.gitRepo);
-	Git git(config, writer);
-
 	Log("Running from r{} to r{}", startRev, stopRev);
+
+	long int lastSuccessfulRev = 0;
 
 	for (long int revNum = startRev; revNum <= stopRev; revNum++)
 	{
@@ -126,8 +129,15 @@ int main(int argc, char* argv[])
 
 		if (!result.has_value())
 		{
+			if (lastSuccessfulRev > 0)
+			{
+				writer.WriteLastRevision(lastSuccessfulRev);
+			}
 			Log("Error converting r{}:\n{}", revNum, result.error());
 			return EXIT_FAILURE;
 		}
+		lastSuccessfulRev = revNum;
 	}
+	Log("Finished conversion at r{}", lastSuccessfulRev);
+	writer.WriteLastRevision(lastSuccessfulRev);
 }

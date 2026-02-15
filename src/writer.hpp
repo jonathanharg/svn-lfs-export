@@ -22,6 +22,8 @@ public:
 	std::filesystem::path GetLFSRoot() { return mGitRootPath; };
 	bool DoesBranchAlreadyExistOnDisk(const std::string& branch);
 	bool IsRepoEmpty() const { return mIsEmpty; };
+	long int GetLastWrittenRevision();
+	void WriteLastRevision(long int rev);
 
 private:
 	bool mIsEmpty = false;
@@ -29,4 +31,5 @@ private:
 	std::filesystem::path mRepoPath;
 	std::filesystem::path mGitRootPath;
 	std::vector<std::string> mExistingBranches;
+	static constexpr const char* kLastRevPath = "svn_lfs_export_lastrev";
 };

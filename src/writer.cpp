@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <string>
 #include <unistd.h>
 #include <vector>
@@ -81,6 +82,22 @@ FILE* Writer::GetFastImportStream()
 bool Writer::DoesBranchAlreadyExistOnDisk(const std::string& branch)
 {
 	return std::ranges::find(mExistingBranches, branch) != mExistingBranches.end();
+}
+
+long int Writer::GetLastWrittenRevision()
+{
+	long int read_value = 0;
+	std::ifstream in(mGitRootPath / kLastRevPath);
+	in >> read_value;
+	in.close();
+	return read_value;
+}
+
+void Writer::WriteLastRevision(long int rev)
+{
+	std::ofstream out(mGitRootPath / kLastRevPath);
+	out << rev;
+	out.close();
 }
 
 Writer::~Writer()
