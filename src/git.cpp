@@ -79,6 +79,12 @@ std::string Git::GetSha256(const std::string_view input)
 
 std::string Git::WriteLFSFile(const std::string_view input)
 {
+	if (input.empty())
+	{
+		// 0 byte files aren't stored in LFS
+		return "";
+	}
+
 	std::string hash = GetSha256(input);
 	std::filesystem::path root = mWriter.GetLFSRoot();
 	std::filesystem::path path =
