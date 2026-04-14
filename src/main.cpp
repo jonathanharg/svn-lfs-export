@@ -95,7 +95,7 @@ int main(int argc, char* argv[])
 
 	if (!revString.has_value())
 	{
-		startRev = writer.GetLastWrittenRevision();
+		startRev = writer.GetLastWrittenRevision() + 1;
 		stopRev = youngestRev;
 	}
 	else if (RE2::FullMatch(*revString, "(\\d+):(\\d+)", &startRev, &stopRev))
@@ -138,6 +138,9 @@ int main(int argc, char* argv[])
 		}
 		lastSuccessfulRev = revNum;
 	}
-	Log("Finished conversion at r{}", lastSuccessfulRev);
-	writer.WriteLastRevision(lastSuccessfulRev);
+	if (lastSuccessfulRev != 0)
+	{
+		Log("Finished conversion at r{}", lastSuccessfulRev);
+		writer.WriteLastRevision(lastSuccessfulRev);
+	}
 }
