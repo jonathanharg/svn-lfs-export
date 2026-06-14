@@ -68,11 +68,15 @@ No. svn-lfs-export repositories aren't backwards compatible with svn or git-svn.
 
 ## Build from source
 
-> Make sure you have vcpkg installed and configured correctly
+All dependencies except Subversion and APR are bundled as git submodules, so clone
+recursively (or run `git submodule update --init --recursive` in an existing clone):
+```
+git clone --recursive https://github.com/jonathanharg/svn-lfs-export.git
+```
 
-On MacOS, make sure you have `svn` and `apr` installed with brew.
-
-On Linux make sure `libsvn-dev` or similar is installed.
+Subversion and APR are the only system dependencies:
+ - On macOS, install them with `brew install svn apr`.
+ - On Linux, install `libsvn-dev` (or similar).
 
 Configure CMake from the root directory. Available presets `ninja` or `xcode`
 ```

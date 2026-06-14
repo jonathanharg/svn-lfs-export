@@ -1,4 +1,4 @@
-add_library(svn-lfs-export_warnings INTERFACE)
+add_library(project_warnings INTERFACE)
 
 set(CLANG_WARNINGS
 	-Wall
@@ -38,4 +38,4 @@ else()
 	message(AUTHOR_WARNING "No compiler warnings set for CXX compiler: '${CMAKE_CXX_COMPILER_ID}'")
 endif()
 
-target_compile_options(svn-lfs-export_warnings INTERFACE ${PROJECT_WARNINGS})
+target_compile_options(project_warnings INTERFACE ${PROJECT_WARNINGS})

@@ -1,0 +1,30 @@
+[submodule "extern/doctest"]
+	path = extern/doctest
+	url = https://github.com/doctest/doctest.git
+[submodule "extern/picosha2"]
+	path = extern/picosha2
+	url = https://github.com/okdshin/PicoSHA2.git
+[submodule "extern/argparse"]
+	path = extern/argparse
+	url = https://github.com/p-ranav/argparse.git
+[submodule "extern/fmt"]
+	path = extern/fmt
+	url = https://github.com/fmtlib/fmt.git
+[submodule "extern/date"]
+	path = extern/date
+	url = https://github.com/HowardHinnant/date.git
+[submodule "extern/tomlplusplus"]
+	path = extern/tomlplusplus
+	url = https://github.com/marzer/tomlplusplus.git
+[submodule "extern/libgit2"]
+	path = extern/libgit2
+	url = https://github.com/libgit2/libgit2.git
+[submodule "extern/abseil"]
+	path = extern/abseil
+	url = https://github.com/abseil/abseil-cpp.git
+[submodule "extern/re2"]
+	path = extern/re2
+	url = https://github.com/google/re2.git
+[submodule "extern/subprocess.h"]
+	path = extern/subprocess.h
+	url = https://github.com/sheredom/subprocess.h

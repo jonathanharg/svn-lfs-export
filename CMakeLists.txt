@@ -11,13 +11,55 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules")
 find_package(APR REQUIRED)
 find_package(Subversion REQUIRED)
 
-find_package(argparse CONFIG REQUIRED)
-find_package(date CONFIG REQUIRED)
-find_package(fmt CONFIG REQUIRED)
-find_package(libgit2 CONFIG REQUIRED)
-find_package(OpenSSL REQUIRED)
-find_package(re2 CONFIG REQUIRED)
-find_package(tomlplusplus CONFIG REQUIRED)
+add_subdirectory(extern/argparse SYSTEM)
+add_subdirectory(extern/fmt SYSTEM)
+add_subdirectory(extern/tomlplusplus SYSTEM)
+add_subdirectory(extern/picosha2 SYSTEM)
+
+set(BUILD_TZ_LIB ON)
+set(USE_SYSTEM_TZ_DB ON)
+add_subdirectory(extern/date SYSTEM)
+
+set(USE_HTTPS
+	OFF
+	CACHE STRING "" FORCE
+)
+set(USE_SSH
+	OFF
+	CACHE STRING "" FORCE
+)
+set(USE_BUNDLED_ZLIB
+	ON
+	CACHE STRING "" FORCE
+)
+set(BUILD_TESTS
+	OFF
+	CACHE BOOL "" FORCE
+)
+set(BUILD_CLI
+	OFF
+	CACHE BOOL "" FORCE
+)
+set(BUILD_SHARED_LIBS
+	OFF
+	CACHE BOOL "" FORCE
+)
+add_subdirectory(extern/libgit2 SYSTEM)
+
+set(ABSL_PROPAGATE_CXX_STD
+	ON
+	CACHE BOOL "" FORCE
+)
+set(ABSL_ENABLE_INSTALL
+	ON
+	CACHE BOOL "" FORCE
+)
+set(BUILD_TESTING
+	OFF
+	CACHE BOOL "" FORCE
+)
+add_subdirectory(extern/abseil SYSTEM)
+add_subdirectory(extern/re2 SYSTEM)
 
 include(cmake/warnings.cmake)
 
@@ -30,9 +72,8 @@ set_property(
 	PROPERTY CMAKE_CONFIGURE_DEPENDS src/example_config.hpp.in example_config.toml
 )
 
-# Executable
 add_executable(
-	svn-lfs-export
+	exe
 	src/config.cpp
 	src/git.cpp
 	src/main.cpp
@@ -40,25 +81,26 @@ add_executable(
 	src/writer.cpp
 )
 
-target_compile_features(svn-lfs-export PUBLIC cxx_std_23)
-target_include_directories(svn-lfs-export PUBLIC "${PROJECT_SOURCE_DIR}/src" ${CODEGEN_DIR})
+target_compile_features(exe PUBLIC cxx_std_23)
+target_include_directories(exe PUBLIC "${PROJECT_SOURCE_DIR}/src" ${CODEGEN_DIR})
+
+target_include_directories(exe SYSTEM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/subprocess.h)
 
 target_link_libraries(
-	svn-lfs-export
+	exe
 	PUBLIC APR::APR
 		   argparse::argparse
 		   date::date
 		   date::date-tz
 		   fmt::fmt
-		   libgit2::libgit2package
-		   OpenSSL::Crypto
+		   libgit2
+		   libgit2package
+		   picosha2
 		   re2::re2
 		   Subversion::fs
 		   Subversion::repos
 		   Subversion::subr
 		   tomlplusplus::tomlplusplus
-		   svn-lfs-export_warnings
+		   project_warnings
 )
-target_compile_definitions(
-	svn-lfs-export PUBLIC TOML_ENABLE_FORMATTERS=0 TOML_EXCEPTIONS=0 PROJECT_VERSION="${PROJECT_VERSION}"
-)
+target_compile_definitions(exe PUBLIC TOML_ENABLE_FORMATTERS=0 TOML_EXCEPTIONS=0 PROJECT_VERSION="${PROJECT_VERSION}")

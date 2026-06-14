@@ -31,8 +31,6 @@ public:
 
 	std::string GetTime(const std::string& svnTime);
 
-	std::string GetSha256(const std::string_view inputStr);
-
 	std::string WriteLFSFile(const std::string_view input);
 
 	std::string GetGitAttributesFile();

@@ -196,7 +196,7 @@ std::expected<void, std::string> Config::IsValid() const
 			fmt::arg("rev", 1)
 		);
 	}
-	catch (fmt::v12::format_error& err)
+	catch (fmt::format_error& err)
 	{
 		return std::unexpected(
 			fmt::format("ERROR: Invalid commit_message template (fmtlib error {:?}).", err.what())

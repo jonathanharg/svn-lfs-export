@@ -11,11 +11,9 @@
 #include <fmt/ostream.h>
 #include <git2.h>
 #include <git2/pathspec.h>
-#include <openssl/sha.h>
 #include <re2/re2.h>
 
 #include <algorithm>
-#include <array>
 #include <cassert>
 #include <chrono>
 #include <cstddef>
@@ -24,6 +22,7 @@
 #include <filesystem>
 #include <fstream>
 #include <optional>
+#include <picosha2.h>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -63,20 +62,6 @@ std::string Git::GetCommitMessage(const std::string& log, const std::string& use
 	);
 }
 
-std::string Git::GetSha256(const std::string_view input)
-{
-	std::array<unsigned char, SHA256_DIGEST_LENGTH> hash{};
-	SHA256(reinterpret_cast<const unsigned char*>(input.data()), input.size(), hash.data());
-
-	std::string result;
-	result.reserve(SHA256_DIGEST_LENGTH * 2);
-	for (unsigned char byte : hash)
-	{
-		result += fmt::format("{:02x}", byte);
-	}
-	return result;
-}
-
 std::string Git::WriteLFSFile(const std::string_view input)
 {
 	if (input.empty())
@@ -85,7 +70,7 @@ std::string Git::WriteLFSFile(const std::string_view input)
 		return "";
 	}
 
-	std::string hash = GetSha256(input);
+	std::string hash = picosha2::hash256_hex_string(input.begin(), input.end());
 	std::filesystem::path root = mWriter.GetLFSRoot();
 	std::filesystem::path path =
 		root / "lfs" / "objects" / hash.substr(0, 2) / hash.substr(2, 2) / hash;
