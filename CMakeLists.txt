@@ -73,7 +73,7 @@ set_property(
 )
 
 add_executable(
-	exe
+	svn-lfs-export
 	src/config.cpp
 	src/git.cpp
 	src/main.cpp
@@ -81,13 +81,13 @@ add_executable(
 	src/writer.cpp
 )
 
-target_compile_features(exe PUBLIC cxx_std_23)
-target_include_directories(exe PUBLIC "${PROJECT_SOURCE_DIR}/src" ${CODEGEN_DIR})
+target_compile_features(svn-lfs-export PUBLIC cxx_std_23)
+target_include_directories(svn-lfs-export PUBLIC "${PROJECT_SOURCE_DIR}/src" ${CODEGEN_DIR})
 
-target_include_directories(exe SYSTEM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/subprocess.h)
+target_include_directories(svn-lfs-export SYSTEM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/subprocess.h)
 
 target_link_libraries(
-	exe
+	svn-lfs-export
 	PUBLIC APR::APR
 		   argparse::argparse
 		   date::date
@@ -103,4 +103,4 @@ target_link_libraries(
 		   tomlplusplus::tomlplusplus
 		   project_warnings
 )
-target_compile_definitions(exe PUBLIC TOML_ENABLE_FORMATTERS=0 TOML_EXCEPTIONS=0 PROJECT_VERSION="${PROJECT_VERSION}")
+target_compile_definitions(svn-lfs-export PUBLIC TOML_ENABLE_FORMATTERS=0 TOML_EXCEPTIONS=0 PROJECT_VERSION="${PROJECT_VERSION}")
