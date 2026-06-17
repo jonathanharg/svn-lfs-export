@@ -2,6 +2,7 @@
 #include "git.hpp"
 #include "svn.hpp"
 #include "utils.hpp"
+#include "writer.hpp"
 
 #include <date/date.h>
 #include <date/tz.h>
@@ -20,7 +21,6 @@
 #include <cstdio>
 #include <expected>
 #include <filesystem>
-#include <fstream>
 #include <optional>
 #include <picosha2.h>
 #include <sstream>
@@ -62,32 +62,7 @@ std::string Git::GetCommitMessage(const std::string& log, const std::string& use
 	);
 }
 
-std::string Git::WriteLFSFile(const std::string_view input)
-{
-	if (input.empty())
-	{
-		// 0 byte files aren't stored in LFS
-		return "";
-	}
-
-	std::string hash = picosha2::hash256_hex_string(input.begin(), input.end());
-	std::filesystem::path root = mWriter.GetLFSRoot();
-	std::filesystem::path path =
-		root / "lfs" / "objects" / hash.substr(0, 2) / hash.substr(2, 2) / hash;
-
-	if (!std::filesystem::exists(path))
-	{
-		std::filesystem::create_directories(path.parent_path());
-		std::ofstream file{path};
-		file << input;
-	}
-
-	return fmt::format(
-		"version https://git-lfs.github.com/spec/v1\noid sha256:{}\nsize {}\n", hash, input.size()
-	);
-}
-
-std::string Git::GetGitAttributesFile()
+std::string Git::GetGitAttributesContent()
 {
 	std::string attributes;
 
@@ -120,6 +95,33 @@ std::string Git::GetTime(const std::string& svnTime)
 	return fmt::format("{} {}", unixEpoch, formattedOffset);
 }
 
+std::string Git::WriteLFSFile(const std::string_view input)
+{
+	if (input.empty())
+	{
+		// 0 byte files aren't stored in LFS
+		return "";
+	}
+
+	std::string hash = picosha2::hash256_hex_string(input.begin(), input.end());
+	std::filesystem::path path = "lfs/objects/" + hash.substr(0, 2) + hash.substr(2, 2) + "/" + hash;
+
+	mWriter.WriteToGitDirectory(path, input);
+
+	return fmt::format(
+		"version https://git-lfs.github.com/spec/v1\noid sha256:{}\nsize {}\n", hash, input.size()
+	);
+}
+
+std::string Git::ConvertSymlink(std::string_view svnSymlink)
+{
+	// svn symlinks are in the format "link path/to/target"
+	std::string output;
+	static const RE2 pattern("link (.*)");
+	RE2::FullMatch(svnSymlink, pattern, &output);
+	return output;
+}
+
 std::optional<std::string> Git::GetBranchOrigin(const std::string& branch)
 {
 	const bool seenBranch = mSeenBranches.contains(branch);
@@ -130,16 +132,14 @@ std::optional<std::string> Git::GetBranchOrigin(const std::string& branch)
 		return std::string("");
 	}
 
-	static bool writtenFirstCommit = false;
-	if (!writtenFirstCommit && mWriter.IsRepoEmpty())
+	if (mFirstCommit && mStartingState.isRepoEmpty)
 	{
-		writtenFirstCommit = true;
 		// Omit the `from`, this is the first commit to a new repository
 		// so create a commit with no ancestor.
 		return std::string("");
 	}
 
-	if (mWriter.DoesBranchAlreadyExistOnDisk(branch))
+	if (std::ranges::contains(mStartingState.existingBranches, branch))
 	{
 		// Load from disk with ^0
 		return fmt::format("from refs/heads/{}^0\n", branch);
@@ -307,8 +307,6 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 	{
 		const std::string& branch = file.git.branch;
 
-		FILE* output = mWriter.GetFastImportStream();
-
 		if (branch != lastBranch)
 		{
 			// We've moved onto a new branch, start a new commit!
@@ -329,72 +327,60 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 				);
 			}
 
-			fmt::print(
-				output,
-				"commit refs/heads/{}\n"
-				"{}"
-				"original-oid r{}\n"
-				"committer {} {}\n"
-				"data {}\n"
-				"{}\n"
-				"{}",
-				branch, mark, rev.GetNumber(), committer, time, message.length(), message, *from
+			mWriter.BeginCommit(
+				BeginCommitArgInfo{
+					.branch = branch,
+					.mark = mark,
+					.revision = rev.GetNumber(),
+					.committer = committer,
+					.time = time,
+					.message = message,
+					.from = *from
+				}
 			);
 
 			mSeenBranches.insert(branch);
 
-			std::string attributes = GetGitAttributesFile();
+			std::string attributes = GetGitAttributesContent();
 			if (attributes.length() > 0)
 			{
-				// We don't need to be writing this for every commit, just the first to each repo
+				// We don't need to be writing this for every commit, just the first to each branch
 				// Oh well, it's easier to do it this way for now
-				fmt::print(
-					output,
-					"M {} inline .gitattributes\n"
-					"data {}\n"
-					"{}\n",
-					static_cast<int>(Mode::Normal), attributes.size(), attributes
-				);
+				mWriter.Modify(static_cast<int>(Mode::Normal), ".gitattributes", attributes);
 			}
 		}
 
 		if (file.svn->changeType == svn::File::Change::Delete)
 		{
-			fmt::print(output, "D {}\n", file.git.path);
+			mWriter.Delete(file.git.path);
 		}
 		else if (!file.svn->isDirectory)
 		{
 			auto fileContents = file.svn->GetContents();
 			std::string_view svnFile{fileContents.get(), file.svn->size};
-			std::string_view outputFile = svnFile;
-			std::string lfsPointer;
 			Mode mode = file.svn->isExecutable ? Mode::Executable : Mode::Normal;
 
-			if (file.git.lfs)
+			if (file.svn->isSymlink && file.git.lfs)
 			{
-				lfsPointer = WriteLFSFile(svnFile);
-				outputFile = lfsPointer;
-			}
-
-			std::string symlinkPath;
-			if (file.svn->isSymlink)
-			{
-				// svn symlinks are in the format "link path/to/target"
-				static const RE2 pattern("link (.*)");
-				RE2::FullMatch(svnFile, pattern, &symlinkPath);
-
 				mode = Mode::Symlink;
-				outputFile = symlinkPath;
+				std::string lfsPointer = WriteLFSFile(ConvertSymlink(svnFile));
+				mWriter.Modify(static_cast<int>(mode), file.git.path, lfsPointer);
 			}
-
-			fmt::print(
-				output,
-				"M {} inline {}\n"
-				"data {}\n"
-				"{}\n",
-				static_cast<int>(mode), file.git.path, outputFile.size(), outputFile
-			);
+			else if (file.git.lfs)
+			{
+				std::string lfsPointer = WriteLFSFile(svnFile);
+				mWriter.Modify(static_cast<int>(mode), file.git.path, lfsPointer);
+			}
+			else if (file.svn->isSymlink)
+			{
+				mode = Mode::Symlink;
+				mWriter.Modify(static_cast<int>(mode), file.git.path, ConvertSymlink(svnFile));
+			}
+			else {
+				mWriter.Modify(static_cast<int>(mode), file.git.path, svnFile);
+			}
 		}
+		mFirstCommit = false;
 	}
 
 	return {};

@@ -1,35 +1,66 @@
 #pragma once
-#include "subprocess.h"
-
 #include <cstdio>
 #include <filesystem>
 #include <string>
-#include <vector>
+#include <utility>
 
-class Writer
+struct BeginCommitArgInfo
+{
+	std::string_view branch;
+	std::string_view mark;
+	long int revision;
+	std::string_view committer;
+	std::string_view time;
+	std::string_view message;
+	std::string_view from;
+};
+
+class IFastImport
 {
 public:
-	Writer(const std::string& repo);
-	~Writer();
+	virtual ~IFastImport() = default;
 
-	Writer(const Writer&) = delete;
-	Writer& operator=(const Writer&) = delete;
+	void BeginCommit(BeginCommitArgInfo args);
+	void Delete(const std::string_view path);
+	void Modify(int mode, const std::string_view path, const std::string_view data);
+	void Done();
+	virtual void WriteToGitDirectory(std::filesystem::path path, const std::string_view data) = 0;
 
-	Writer(Writer&&) = delete;
-	Writer& operator=(Writer&&) = delete;
+protected:
+	virtual void Write(std::string_view content) = 0;
+};
 
-	FILE* GetFastImportStream();
-	std::filesystem::path GetLFSRoot() { return mGitRootPath; };
-	bool DoesBranchAlreadyExistOnDisk(const std::string& branch);
-	bool IsRepoEmpty() const { return mIsEmpty; };
+class FastImportProcess : public IFastImport
+{
+public:
+	FastImportProcess(FILE* input, std::filesystem::path root) :
+		mInput(input),
+		mRoot(std::move(root)) {};
+
+	void WriteToGitDirectory(std::filesystem::path path, const std::string_view data) final;
+
+	void SaveLastWrittenRevision(long int rev);
+
 	long int GetLastWrittenRevision();
-	void WriteLastRevision(long int rev);
 
 private:
-	bool mIsEmpty = false;
-	subprocess_s mProcess{};
-	std::filesystem::path mRepoPath;
-	std::filesystem::path mGitRootPath;
-	std::vector<std::string> mExistingBranches;
-	static constexpr const char* kLastRevPath = "svn_lfs_export_lastrev";
+	void Write(std::string_view content) final;
+
+	FILE* mInput;
+	std::filesystem::path mRoot;
+};
+
+class FastImportBuffer : public IFastImport
+{
+public:
+	FastImportBuffer();
+
+	void WriteToGitDirectory(std::filesystem::path path, const std::string_view data) final;
+
+	const std::string& GetBuffer() const { return mBuffer; };
+
+private:
+	void Write(std::string_view content) final;
+
+	std::string mBuffer;
 };

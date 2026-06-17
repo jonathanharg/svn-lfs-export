@@ -7,12 +7,17 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <unordered_set>
 
 class Git
 {
 public:
+	struct StartingState
+	{
+		bool isRepoEmpty = false;
+		std::vector<std::string> existingBranches;
+	};
+
 	struct Mapping
 	{
 		bool skip = false;
@@ -21,28 +26,34 @@ public:
 		bool lfs = false;
 	};
 
-	Git(const Config& config, Writer& writer) :
+	Git(const Config& config, IFastImport& writer, StartingState startingState) :
 		mConfig(config),
-		mWriter(writer) {};
+		mWriter(writer),
+		mStartingState(std::move(startingState)) {};
 
 	std::string GetAuthor(const std::string& username);
 
 	std::string GetCommitMessage(const std::string& log, const std::string& username, long int rev);
 
+	std::string GetGitAttributesContent();
+
 	std::string GetTime(const std::string& svnTime);
 
 	std::string WriteLFSFile(const std::string_view input);
 
-	std::string GetGitAttributesFile();
+	std::string ConvertSymlink(std::string_view svnSymlink);
+
+	std::optional<Mapping> MapPath(const long int rev, const std::string_view& svnPath);
 
 	std::optional<std::string> GetBranchOrigin(const std::string& branch);
-
-	std::optional<Mapping> MapPath(const long int rev, const std::string_view& path);
 
 	std::expected<void, std::string> WriteCommit(const svn::Revision& rev);
 
 private:
 	const Config& mConfig;
-	Writer& mWriter;
+	IFastImport& mWriter;
+	const StartingState mStartingState;
+
+	bool mFirstCommit = true;
 	std::unordered_set<std::string> mSeenBranches;
 };

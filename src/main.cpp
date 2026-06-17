@@ -7,15 +7,26 @@
 
 #include <apr_general.h>
 #include <argparse/argparse.hpp>
+#include <fmt/format.h>
 #include <fmt/ostream.h>
 #include <git2.h>
+#include <git2/branch.h>
+#include <git2/errors.h>
 #include <git2/global.h>
+#include <git2/refs.h>
+#include <git2/repository.h>
+#include <git2/types.h>
 #include <re2/re2.h>
 
+#include <array>
+#include <csignal>
 #include <cstdlib>
 #include <exception>
+#include <filesystem>
 #include <iostream>
 #include <string>
+#include <subprocess.h>
+#include <sys/signal.h>
 
 struct LibGit2Init
 {
@@ -35,8 +46,49 @@ struct LibAprInit
 	LibAprInit& operator=(const LibAprInit&) = delete;
 };
 
+std::filesystem::path GetExistingGitStatus(std::filesystem::path path, Git::StartingState* outState)
+{
+	std::filesystem::path gitRootPath;
+
+	git_repository* gitRepo = nullptr;
+	int err = git_repository_open(&gitRepo, path.c_str());
+
+	if (err == GIT_ENOTFOUND)
+	{
+		git_repository_init(&gitRepo, path.c_str(), false);
+		outState->isRepoEmpty = true;
+		gitRootPath = path / ".git";
+	}
+	else
+	{
+		gitRootPath = git_repository_path(gitRepo);
+		outState->isRepoEmpty = static_cast<bool>(git_repository_is_empty(gitRepo));
+
+		git_branch_iterator* branchIt = nullptr;
+		git_branch_iterator_new(&branchIt, gitRepo, GIT_BRANCH_LOCAL);
+
+		git_reference* ref = nullptr;
+		git_branch_t type{};
+
+		while (git_branch_next(&ref, &type, branchIt) == 0)
+		{
+			const char* name = nullptr;
+			git_branch_name(&name, ref);
+
+			outState->existingBranches.emplace_back(name);
+
+			git_reference_free(ref);
+		}
+		git_branch_iterator_free(branchIt);
+	}
+	git_repository_free(gitRepo);
+
+	return gitRootPath;
+}
+
 int main(int argc, char* argv[])
 {
+	std::signal(SIGPIPE, SIG_IGN);
 	argparse::ArgumentParser program("svn-lfs-export", PROJECT_VERSION);
 
 	std::string configPath;
@@ -82,8 +134,37 @@ int main(int argc, char* argv[])
 
 	const Config& config = maybeConfig.value();
 
-	Writer writer(config.gitRepo);
-	Git git(config, writer);
+	Git::StartingState gitState;
+	std::filesystem::path gitRoot = GetExistingGitStatus(config.gitRepo, &gitState);
+
+	subprocess_s gitProcess{};
+	{
+		std::filesystem::path marksPath = gitRoot / "svn_lfs_export_marks";
+
+		std::string gitDirFlag = fmt::format("--git-dir={}", gitRoot.c_str());
+		std::string exportMarksFlag = fmt::format("--export-marks={}", marksPath.c_str());
+		std::string importMarksFlag =  fmt::format("--import-marks-if-exists={}", marksPath.c_str());
+
+		const std::array subprocessArgs{
+			"git",
+			gitDirFlag.c_str(),
+			"fast-import",
+			"--done",
+			exportMarksFlag.c_str(),
+			importMarksFlag.c_str(),
+			static_cast<const char*>(nullptr),
+		};
+
+		int result = subprocess_create(subprocessArgs.data(), subprocess_option_search_user_path, &gitProcess);
+		if (result != 0)
+		{
+			Log("ERROR: Could not create git fast-import subprocess for {:?}", config.gitRepo.c_str());
+			return EXIT_FAILURE;
+		}
+	}
+
+	FastImportProcess writer(subprocess_stdin(&gitProcess), gitRoot);
+	Git git(config, writer, gitState);
 
 	auto repository = svn::Repository(config.svnRepo);
 
@@ -114,8 +195,6 @@ int main(int argc, char* argv[])
 
 	Log("Running from r{} to r{}", startRev, stopRev);
 
-	long int lastSuccessfulRev = 0;
-
 	for (long int revNum = startRev; revNum <= stopRev; revNum++)
 	{
 		svn::Revision rev = repository.GetRevision(revNum);
@@ -129,18 +208,17 @@ int main(int argc, char* argv[])
 
 		if (!result.has_value())
 		{
-			if (lastSuccessfulRev > 0)
-			{
-				writer.WriteLastRevision(lastSuccessfulRev);
-			}
 			Log("Error converting r{}:\n{}", revNum, result.error());
-			return EXIT_FAILURE;
+			break;
 		}
-		lastSuccessfulRev = revNum;
+		writer.SaveLastWrittenRevision(stopRev);
 	}
-	if (lastSuccessfulRev != 0)
+	writer.Done();
+	int processReturn = 0;
+	int result = subprocess_join(&gitProcess, &processReturn);
+	if (result != 0 || processReturn != 0)
 	{
-		Log("Finished conversion at r{}", lastSuccessfulRev);
-		writer.WriteLastRevision(lastSuccessfulRev);
+		Log("ERROR: An error occurred waiting for git fast-import!");
 	}
+	subprocess_destroy(&gitProcess);
 }

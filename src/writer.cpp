@@ -1,12 +1,9 @@
-#include "subprocess.h"
 #include "utils.hpp"
 #include "writer.hpp"
 
 #include <fmt/ranges.h>
 #include <git2.h>
 
-#include <algorithm>
-#include <array>
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
@@ -14,93 +11,76 @@
 #include <fstream>
 #include <string>
 #include <unistd.h>
-#include <vector>
 
-Writer::Writer(const std::string& repo) :
-	mRepoPath(std::filesystem::weakly_canonical(repo))
+void IFastImport::BeginCommit(BeginCommitArgInfo args)
 {
-	if (!std::filesystem::exists(mRepoPath))
+	std::string command = fmt::format(
+		"commit refs/heads/{}\n"
+		"{}"
+		"original-oid r{}\n"
+		"committer {} {}\n"
+		"data {}\n"
+		"{}\n"
+		"{}",
+		args.branch, args.mark, args.revision, args.committer, args.time, args.message.length(),
+		args.message, args.from
+	);
+	Write(command);
+}
+
+void IFastImport::Delete(const std::string_view path)
+{
+	Write(fmt::format("D {}\n", path));
+}
+
+void IFastImport::Modify(int mode, const std::string_view path, const std::string_view data)
+{
+	Write(fmt::format("M {} inline {}\ndata {}\n", mode, path, data.size()));
+	Write(data);
+}
+
+void IFastImport::Done()
+{
+	Write("done\n");
+}
+
+void FastImportProcess::WriteToGitDirectory(std::filesystem::path path, const std::string_view data)
+{
+	std::filesystem::path writePath = mRoot / path;
+	if (!std::filesystem::exists(writePath))
 	{
-		std::filesystem::create_directories(mRepoPath);
-	}
-
-	chdir(mRepoPath.c_str());
-
-	git_repository* gitRepo = nullptr;
-	int err = git_repository_open(&gitRepo, mRepoPath.c_str());
-
-	if (err == GIT_ENOTFOUND)
-	{
-		git_repository_init(&gitRepo, mRepoPath.c_str(), false);
-		mIsEmpty = true;
-		mGitRootPath = mRepoPath / ".git";
-	}
-	else
-	{
-		mGitRootPath = git_repository_path(gitRepo);
-		mIsEmpty = git_repository_is_empty(gitRepo);
-
-		git_branch_iterator* branchIt = nullptr;
-		git_branch_iterator_new(&branchIt, gitRepo, GIT_BRANCH_LOCAL);
-
-		git_reference* ref = nullptr;
-		git_branch_t type{};
-
-		while (git_branch_next(&ref, &type, branchIt) == 0)
-		{
-			const char* name = nullptr;
-			git_branch_name(&name, ref);
-
-			mExistingBranches.emplace_back(name);
-
-			git_reference_free(ref);
-		}
-		git_branch_iterator_free(branchIt);
-	}
-	git_repository_free(gitRepo);
-
-	const std::array args{
-		"git",
-		"fast-import",
-		"--export-marks=./.git/svn_lfs_export_marks",
-		"--import-marks-if-exists=./.git/svn_lfs_export_marks",
-		static_cast<const char*>(nullptr),
-	};
-	int result = subprocess_create(args.data(), subprocess_option_search_user_path, &mProcess);
-	if (result != 0)
-	{
-		Log("ERROR: Could not create git fast-import subprocess in {:?}", mRepoPath.c_str());
-		std::exit(EXIT_FAILURE);
+		std::filesystem::create_directories(writePath.parent_path());
+		std::ofstream file{writePath};
+		file << data;
 	}
 }
 
-FILE* Writer::GetFastImportStream()
+void FastImportProcess::Write(std::string_view content)
 {
-	return subprocess_stdin(&mProcess);
+	size_t written = std::fwrite(content.data(), 1, content.size(), mInput);
+	if (written != content.size())
+	{
+		Log("ERROR: Failed to write to fast-import stream!");
+	}
 }
 
-bool Writer::DoesBranchAlreadyExistOnDisk(const std::string& branch)
+void FastImportProcess::SaveLastWrittenRevision(long int rev)
 {
-	return std::ranges::find(mExistingBranches, branch) != mExistingBranches.end();
+	Log("UNIMPLEMENTED: Last written revision was {}", rev);
 }
 
-long int Writer::GetLastWrittenRevision()
+long int FastImportProcess::GetLastWrittenRevision()
 {
-	long int read_value = 0;
-	std::ifstream in(mGitRootPath / kLastRevPath);
-	in >> read_value;
-	in.close();
-	return read_value;
+	Log("UNIMPLEMENTED: Getting last written revision");
+	return 0;
 }
 
-void Writer::WriteLastRevision(long int rev)
+void FastImportBuffer::WriteToGitDirectory(std::filesystem::path, const std::string_view)
 {
-	std::ofstream out(mGitRootPath / kLastRevPath);
-	out << rev;
-	out.close();
+	// no op
 }
 
-Writer::~Writer()
+void FastImportBuffer::Write(std::string_view content)
 {
-	subprocess_destroy(&mProcess);
+	mBuffer.append(content);
 }
