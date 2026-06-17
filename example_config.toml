@@ -54,8 +54,8 @@ jsmith = 'John Smith <jsmith@acme.com>'
 # REQUIRED: Regex to match SVN path, with standard regex captures.
 # Captures:            v \1           v \2
 svn_path = '/projects/([^/]+)/branch/([^/]+)/'
-# The git branch to map to. Required if repository is provided. Regex replacements can
-# be used here. If no branch is provided any matched files will be ignored.
+# REQUIRED: The git branch to map to. Regex replacements can be used here. If no branch
+# is provided any matched files will be ignored.
 branch = 'svn_\2'
 # The git path to map to, can be blank. Anything remaining not captured in svn_path
 # will be appended as the git path.
@@ -67,10 +67,8 @@ max_revision = 1000
 # Basic git-svn like example usage
 [[rule]]
 svn_path = '/trunk/'
-repository = 'repo'
 branch = 'main'
 
 [[rule]]
 svn_path = '/branches/([^/]+)/'
-repository = 'repo'
 branch = '\1'
