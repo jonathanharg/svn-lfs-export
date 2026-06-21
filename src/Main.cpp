@@ -1,9 +1,9 @@
-#include "config.hpp"
-#include "example_config.hpp"
-#include "git.hpp"
-#include "svn.hpp"
-#include "utils.hpp"
-#include "writer.hpp"
+#include "Config.hpp"
+#include "ExampleConfig.hpp"
+#include "Git.hpp"
+#include "Svn.hpp"
+#include "Utils.hpp"
+#include "Writer.hpp"
 
 #include <apr_general.h>
 #include <argparse/argparse.hpp>
@@ -17,6 +17,7 @@
 #include <git2/repository.h>
 #include <git2/types.h>
 #include <re2/re2.h>
+#include <subprocess.h>
 
 #include <array>
 #include <csignal>
@@ -25,7 +26,6 @@
 #include <filesystem>
 #include <iostream>
 #include <string>
-#include <subprocess.h>
 #include <sys/signal.h>
 
 struct LibGit2Init
@@ -143,7 +143,7 @@ int main(int argc, char* argv[])
 
 		std::string gitDirFlag = fmt::format("--git-dir={}", gitRoot.c_str());
 		std::string exportMarksFlag = fmt::format("--export-marks={}", marksPath.c_str());
-		std::string importMarksFlag =  fmt::format("--import-marks-if-exists={}", marksPath.c_str());
+		std::string importMarksFlag = fmt::format("--import-marks-if-exists={}", marksPath.c_str());
 
 		const std::array subprocessArgs{
 			"git",
@@ -155,10 +155,13 @@ int main(int argc, char* argv[])
 			static_cast<const char*>(nullptr),
 		};
 
-		int result = subprocess_create(subprocessArgs.data(), subprocess_option_search_user_path, &gitProcess);
+		int result = subprocess_create(
+			subprocessArgs.data(), subprocess_option_search_user_path, &gitProcess
+		);
 		if (result != 0)
 		{
-			Log("ERROR: Could not create git fast-import subprocess for {:?}", config.gitRepo.c_str());
+			Log("ERROR: Could not create git fast-import subprocess for {:?}",
+				config.gitRepo.c_str());
 			return EXIT_FAILURE;
 		}
 	}

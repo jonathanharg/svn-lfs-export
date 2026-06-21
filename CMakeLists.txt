@@ -65,20 +65,20 @@ include(cmake/warnings.cmake)
 
 set(CODEGEN_DIR ${CMAKE_CURRENT_BINARY_DIR}/codegen)
 file(READ example_config.toml EXAMPLE_CONFIG)
-configure_file(src/example_config.hpp.in ${CODEGEN_DIR}/example_config.hpp @ONLY)
+configure_file(src/ExampleConfig.hpp.in ${CODEGEN_DIR}/ExampleConfig.hpp @ONLY)
 set_property(
 	DIRECTORY
 	APPEND
-	PROPERTY CMAKE_CONFIGURE_DEPENDS src/example_config.hpp.in example_config.toml
+	PROPERTY CMAKE_CONFIGURE_DEPENDS src/ExampleConfig.hpp.in example_config.toml
 )
 
 add_executable(
 	svn-lfs-export
-	src/config.cpp
-	src/git.cpp
-	src/main.cpp
-	src/svn.cpp
-	src/writer.cpp
+	src/Config.cpp
+	src/Git.cpp
+	src/Main.cpp
+	src/Svn.cpp
+	src/Writer.cpp
 )
 
 target_compile_features(svn-lfs-export PUBLIC cxx_std_23)

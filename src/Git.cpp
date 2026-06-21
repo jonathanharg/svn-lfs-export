@@ -1,8 +1,8 @@
-#include "config.hpp"
-#include "git.hpp"
-#include "svn.hpp"
-#include "utils.hpp"
-#include "writer.hpp"
+#include "Config.hpp"
+#include "Git.hpp"
+#include "Svn.hpp"
+#include "Utils.hpp"
+#include "Writer.hpp"
 
 #include <date/date.h>
 #include <date/tz.h>
@@ -12,6 +12,7 @@
 #include <fmt/ostream.h>
 #include <git2.h>
 #include <git2/pathspec.h>
+#include <picosha2.h>
 #include <re2/re2.h>
 
 #include <algorithm>
@@ -22,7 +23,6 @@
 #include <expected>
 #include <filesystem>
 #include <optional>
-#include <picosha2.h>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -104,7 +104,8 @@ std::string Git::WriteLFSFile(const std::string_view input)
 	}
 
 	std::string hash = picosha2::hash256_hex_string(input.begin(), input.end());
-	std::filesystem::path path = "lfs/objects/" + hash.substr(0, 2) + hash.substr(2, 2) + "/" + hash;
+	std::filesystem::path path =
+		"lfs/objects/" + hash.substr(0, 2) + hash.substr(2, 2) + "/" + hash;
 
 	mWriter.WriteToGitDirectory(path, input);
 
@@ -376,7 +377,8 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 				mode = Mode::Symlink;
 				mWriter.Modify(static_cast<int>(mode), file.git.path, ConvertSymlink(svnFile));
 			}
-			else {
+			else
+			{
 				mWriter.Modify(static_cast<int>(mode), file.git.path, svnFile);
 			}
 		}

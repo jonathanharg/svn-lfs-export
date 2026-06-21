@@ -1,5 +1,5 @@
-#include "utils.hpp"
-#include "writer.hpp"
+#include "Utils.hpp"
+#include "Writer.hpp"
 
 #include <fmt/ranges.h>
 #include <git2.h>

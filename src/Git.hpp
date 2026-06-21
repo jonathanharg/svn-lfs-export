@@ -1,7 +1,7 @@
 #pragma once
-#include "config.hpp"
-#include "svn.hpp"
-#include "writer.hpp"
+#include "Config.hpp"
+#include "Svn.hpp"
+#include "Writer.hpp"
 
 #include <expected>
 #include <optional>

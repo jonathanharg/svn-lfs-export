@@ -1,5 +1,5 @@
-#include "svn.hpp"
-#include "utils.hpp"
+#include "Svn.hpp"
+#include "Utils.hpp"
 
 #include <apr_hash.h>
 #include <apr_pools.h>
