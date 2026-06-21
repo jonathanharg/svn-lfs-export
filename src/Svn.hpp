@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <expected>
 #include <memory>
 #include <optional>
 #include <span>
@@ -26,13 +27,35 @@ public:
 		ptr(svn_pool_create(nullptr))
 	{
 	}
-	~Pool() { svn_pool_destroy(ptr); }
+	~Pool()
+	{
+		if (ptr)
+		{
+			svn_pool_destroy(ptr);
+		}
+	}
 
 	Pool(const Pool&) = delete;
-	Pool(Pool&&) = delete;
-
 	Pool& operator=(const Pool&) = delete;
-	Pool& operator=(Pool&&) = delete;
+
+	Pool(Pool&& other) noexcept :
+		ptr(other.ptr)
+	{
+		other.ptr = nullptr;
+	}
+	Pool& operator=(Pool&& other) noexcept
+	{
+		if (this != &other)
+		{
+			if (ptr)
+			{
+				svn_pool_destroy(ptr);
+			}
+			ptr = other.ptr;
+			other.ptr = nullptr;
+		}
+		return *this;
+	}
 
 	operator apr_pool_t*() const { return ptr; }
 
@@ -54,9 +77,10 @@ struct File
 		long int rev;
 	};
 
-	explicit File(svn_fs_root_t* revisionFs, const std::string& path, bool isDirectory);
+	static std::expected<File, std::string>
+	Create(svn_fs_root_t* revisionFs, const std::string& path, bool isDirectory, Change changeType);
 
-	std::unique_ptr<char[]> GetContents() const;
+	std::expected<std::unique_ptr<char[]>, std::string> GetContents() const;
 
 	std::string path;
 	bool isDirectory = false;
@@ -68,16 +92,21 @@ struct File
 	std::optional<CopyFrom> copiedFrom;
 
 	svn_fs_root_t* mRevisionFs = nullptr;
+
+private:
+	File() {}
 };
 
 class Repository
 {
 public:
-	explicit Repository(const std::string& path);
-	long int GetYoungestRevision();
-	Revision GetRevision(long int revision);
+	static std::expected<Repository, std::string> Open(const std::string& path);
+	std::expected<long int, std::string> GetYoungestRevision();
+	std::expected<Revision, std::string> GetRevision(long int revision);
 
 private:
+	Repository() = default;
+
 	Pool mRepositoryPool;
 	svn_repos_t* mRepos = nullptr;
 	svn_fs_t* mFs = nullptr;
@@ -93,7 +122,12 @@ public:
 	std::span<const File> GetFiles() const { return mFiles; }
 
 private:
-	Revision(svn_fs_t* repositoryFs, long int revision);
+	explicit Revision(long int revision) :
+		mRevNum(revision)
+	{
+	}
+
+	static std::expected<Revision, std::string> Create(svn_fs_t* repositoryFs, long int revision);
 
 	long int mRevNum;
 	std::string mAuthor;

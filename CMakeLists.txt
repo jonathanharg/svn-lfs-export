@@ -75,10 +75,15 @@ set_property(
 add_executable(
 	svn-lfs-export
 	src/Config.cpp
+	src/Config.hpp
 	src/Git.cpp
+	src/Git.hpp
 	src/Main.cpp
 	src/Svn.cpp
+	src/Svn.hpp
+	src/Utils.hpp
 	src/Writer.cpp
+	src/Writer.hpp
 )
 
 target_compile_features(svn-lfs-export PUBLIC cxx_std_23)

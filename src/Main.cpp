@@ -169,9 +169,21 @@ int main(int argc, char* argv[])
 	FastImportProcess writer(subprocess_stdin(&gitProcess), gitRoot);
 	Git git(config, writer, gitState);
 
-	auto repository = svn::Repository(config.svnRepo);
+	auto maybeRepository = svn::Repository::Open(config.svnRepo);
+	if (!maybeRepository)
+	{
+		Log("ERROR: {}", maybeRepository.error());
+		return EXIT_FAILURE;
+	}
+	svn::Repository& repository = *maybeRepository;
 
-	long int youngestRev = repository.GetYoungestRevision();
+	auto maybeYoungest = repository.GetYoungestRevision();
+	if (!maybeYoungest)
+	{
+		Log("ERROR: {}", maybeYoungest.error());
+		return EXIT_FAILURE;
+	}
+	long int youngestRev = *maybeYoungest;
 
 	auto revString = program.present<std::string>("--revision");
 	long int startRev{};
@@ -200,8 +212,13 @@ int main(int argc, char* argv[])
 
 	for (long int revNum = startRev; revNum <= stopRev; revNum++)
 	{
-		svn::Revision rev = repository.GetRevision(revNum);
-		auto result = git.WriteCommit(rev);
+		auto rev = repository.GetRevision(revNum);
+		if (!rev)
+		{
+			Log("Error converting r{}:\n{}", revNum, rev.error());
+			break;
+		}
+		auto result = git.WriteCommit(*rev);
 
 		if (revNum % 500 == 0)
 		{
@@ -214,8 +231,9 @@ int main(int argc, char* argv[])
 			Log("Error converting r{}:\n{}", revNum, result.error());
 			break;
 		}
-		writer.SaveLastWrittenRevision(stopRev);
 	}
+    // TODO: Check conversion was successfull first
+    writer.SaveLastWrittenRevision(stopRev);
 	writer.Done();
 	int processReturn = 0;
 	int result = subprocess_join(&gitProcess, &processReturn);

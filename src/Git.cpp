@@ -358,7 +358,11 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 		else if (!file.svn->isDirectory)
 		{
 			auto fileContents = file.svn->GetContents();
-			std::string_view svnFile{fileContents.get(), file.svn->size};
+			if (!fileContents)
+			{
+				return std::unexpected(fileContents.error());
+			}
+			std::string_view svnFile{fileContents->get(), file.svn->size};
 			Mode mode = file.svn->isExecutable ? Mode::Executable : Mode::Normal;
 
 			if (file.svn->isSymlink && file.git.lfs)
