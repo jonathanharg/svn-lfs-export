@@ -105,7 +105,7 @@ std::string Git::WriteLFSFile(const std::string_view input)
 
 	std::string hash = picosha2::hash256_hex_string(input.begin(), input.end());
 	std::filesystem::path path =
-		"lfs/objects/" + hash.substr(0, 2) + hash.substr(2, 2) + "/" + hash;
+		"lfs/objects/" + hash.substr(0, 2) + "/" + hash.substr(2, 2) + "/" + hash;
 
 	mWriter.WriteToGitDirectory(path, input);
 
@@ -296,7 +296,7 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 		}
 	}
 
-	std::sort(mappings.begin(), mappings.end());
+	std::stable_sort(mappings.begin(), mappings.end());
 
 	std::string lastBranch;
 
