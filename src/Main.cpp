@@ -210,11 +210,13 @@ int main(int argc, char* argv[])
 
 	Log("Running from r{} to r{}", startRev, stopRev);
 
+	bool success = true;
 	for (long int revNum = startRev; revNum <= stopRev; revNum++)
 	{
 		auto rev = repository.GetRevision(revNum);
 		if (!rev)
 		{
+			success = false;
 			Log("Error converting r{}:\n{}", revNum, rev.error());
 			break;
 		}
@@ -228,18 +230,25 @@ int main(int argc, char* argv[])
 
 		if (!result.has_value())
 		{
+			success = false;
 			Log("Error converting r{}:\n{}", revNum, result.error());
 			break;
 		}
 	}
-    // TODO: Check conversion was successfull first
-    writer.SaveLastWrittenRevision(stopRev);
+	if (success)
+	{
+		writer.SaveLastWrittenRevision(stopRev);
+	}
 	writer.Done();
+
 	int processReturn = 0;
 	int result = subprocess_join(&gitProcess, &processReturn);
 	if (result != 0 || processReturn != 0)
 	{
+		success = false;
 		Log("ERROR: An error occurred waiting for git fast-import!");
 	}
 	subprocess_destroy(&gitProcess);
+
+	return success ? EXIT_SUCCESS : EXIT_FAILURE;
 }
