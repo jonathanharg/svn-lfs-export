@@ -1,6 +1,8 @@
 #pragma once
 #include <cstdio>
+#include <expected>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -41,7 +43,7 @@ public:
 
 	void SaveLastWrittenRevision(long int rev);
 
-	long int GetLastWrittenRevision();
+	std::expected<std::optional<long int>, std::string> GetLastWrittenRevision();
 
 	bool Flush();
 

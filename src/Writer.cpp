@@ -7,8 +7,10 @@
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
+#include <expected>
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <string>
 #include <unistd.h>
 
@@ -66,13 +68,28 @@ void FastImportProcess::Write(std::string_view content)
 
 void FastImportProcess::SaveLastWrittenRevision(long int rev)
 {
-	Log("UNIMPLEMENTED: Last written revision was {}", rev);
+	std::ofstream file{mRoot / "svn_lfs_export_revision"};
+	file << rev << '\n';
 }
 
-long int FastImportProcess::GetLastWrittenRevision()
+std::expected<std::optional<long int>, std::string> FastImportProcess::GetLastWrittenRevision()
 {
-	Log("UNIMPLEMENTED: Getting last written revision");
-	return 0;
+	std::filesystem::path path = mRoot / "svn_lfs_export_revision";
+	if (!std::filesystem::exists(path))
+	{
+		return std::nullopt;
+	}
+
+	std::ifstream file{path};
+	long int rev = 0;
+	file >> rev;
+	if (file.fail())
+	{
+		return std::unexpected(
+			fmt::format("Resume marker {:?} exists but could not be parsed", path.c_str())
+		);
+	}
+	return rev;
 }
 
 bool FastImportProcess::Flush()

@@ -185,47 +185,73 @@ int main(int argc, char* argv[])
 	}
 	long int youngestRev = *maybeYoungest;
 
-	auto revString = program.present<std::string>("--revision");
-	long int startRev{};
-	long int stopRev{};
+	auto revisionRange = program.present<std::string>("--revision");
+	long int startRevision{};
+	long int stopRevision{};
 
-	if (!revString.has_value())
+	if (!revisionRange.has_value())
 	{
-		startRev = writer.GetLastWrittenRevision() + 1;
-		stopRev = youngestRev;
+		auto marker = writer.GetLastWrittenRevision();
+		if (!marker)
+		{
+			Log("ERROR: {}", marker.error());
+			return EXIT_FAILURE;
+		}
+
+		if (marker->has_value())
+		{
+			startRevision = marker->value() + 1;
+		}
+		else if (gitState.isRepoEmpty)
+		{
+			startRevision = 1;
+		}
+		else
+		{
+			Log("ERROR: The git repository has commits but no resume marker. Pass -r <rev>:HEAD to continue manually.");
+			return EXIT_FAILURE;
+		}
+		stopRevision = youngestRev;
 	}
-	else if (RE2::FullMatch(*revString, "(\\d+):(\\d+)", &startRev, &stopRev))
+	else if (RE2::FullMatch(*revisionRange, "(\\d+):(\\d+)", &startRevision, &stopRevision))
 	{
 	}
-	else if (RE2::FullMatch(*revString, "(\\d+)(?::HEAD)?", &startRev))
+	else if (RE2::FullMatch(*revisionRange, "(\\d+)(?::HEAD)?", &startRevision))
 	{
-		stopRev = youngestRev;
+		stopRevision = youngestRev;
 	}
 	else
 	{
 		Log("Unknown revision range {:?}. Use the format -r 1234, -r 1234:5678 or -r 1234:HEAD",
-			*revString);
+			*revisionRange);
 		return EXIT_FAILURE;
 	}
 
-	Log("Running from r{} to r{}", startRev, stopRev);
+	if (startRevision > stopRevision)
+	{
+		Log("Already up to date at r{}", stopRevision);
+	}
+	else
+	{
+		Log("Running from r{} to r{}", startRevision, stopRevision);
+	}
 
 	bool success = true;
-	for (long int revNum = startRev; revNum <= stopRev; revNum++)
+	for (long int revNum = startRevision; revNum <= stopRevision; revNum++)
 	{
-		auto rev = repository.GetRevision(revNum);
-		if (!rev)
+		auto svnRevision = repository.GetRevision(revNum);
+		if (!svnRevision)
 		{
 			success = false;
-			Log("Error converting r{}:\n{}", revNum, rev.error());
+			Log("Error converting r{}:\n{}", revNum, svnRevision.error());
 			break;
 		}
-		auto result = git.WriteCommit(*rev);
+		auto result = git.WriteCommit(*svnRevision);
 
 		if (revNum % 500 == 0)
 		{
-			float percent = 100.0F * (static_cast<float>(revNum) / static_cast<float>(stopRev));
-			Log("Converting {}% [{}/{}]", percent, revNum, stopRev);
+			float percent = 100.0F * (static_cast<float>(revNum) / static_cast<float>(stopRevision));
+			Log("Converting {}% [{}/{}]", percent, revNum, stopRevision);
 		}
 
 		if (!result.has_value())
@@ -244,17 +270,25 @@ int main(int argc, char* argv[])
 	}
 	if (success)
 	{
-		writer.SaveLastWrittenRevision(stopRev);
+		writer.Done();
 	}
-	writer.Done();
 
 	int processReturn = 0;
 	int result = subprocess_join(&gitProcess, &processReturn);
 	if (result != 0 || processReturn != 0)
 	{
+		if (success)
+		{
+			Log("ERROR: An error occurred waiting for git fast-import!");
+		}
 		success = false;
-		Log("ERROR: An error occurred waiting for git fast-import!");
 	}
+
+	if (success && !revisionRange.has_value())
+	{
+		writer.SaveLastWrittenRevision(stopRevision);
+	}
+
 	subprocess_destroy(&gitProcess);
 
 	return success ? EXIT_SUCCESS : EXIT_FAILURE;
