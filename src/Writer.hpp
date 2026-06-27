@@ -43,6 +43,8 @@ public:
 
 	long int GetLastWrittenRevision();
 
+	bool Flush();
+
 private:
 	void Write(std::string_view content) final;
 

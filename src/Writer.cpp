@@ -75,6 +75,11 @@ long int FastImportProcess::GetLastWrittenRevision()
 	return 0;
 }
 
+bool FastImportProcess::Flush()
+{
+	return std::fflush(mInput) == 0 && std::ferror(mInput) == 0;
+}
+
 void FastImportBuffer::WriteToGitDirectory(std::filesystem::path, const std::string_view)
 {
 	// no op

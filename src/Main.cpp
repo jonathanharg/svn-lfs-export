@@ -234,6 +234,13 @@ int main(int argc, char* argv[])
 			Log("Error converting r{}:\n{}", revNum, result.error());
 			break;
 		}
+
+		if (!writer.Flush())
+		{
+			success = false;
+			Log("Error git fast-import pipe broke at r{} (process died?)", revNum);
+			break;
+		}
 	}
 	if (success)
 	{
