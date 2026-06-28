@@ -10,8 +10,6 @@
 #include <fmt/format.h>
 #include <fmt/os.h>
 #include <fmt/ostream.h>
-#include <git2.h>
-#include <git2/pathspec.h>
 #include <picosha2.h>
 #include <re2/re2.h>
 
@@ -28,6 +26,14 @@
 #include <string_view>
 #include <unordered_map>
 #include <vector>
+
+// Use internal wildmatch.c implementation from libgit2
+extern "C" int wildmatch(const char* pattern, const char* text, unsigned int flags);
+
+// WM_PATHNAME
+static constexpr unsigned int kWmPathname = 2;
+// WM_MATCH
+static constexpr int kWmMatch = 0;
 
 enum class Mode
 {
@@ -66,7 +72,7 @@ std::string Git::GetGitAttributesContent()
 {
 	std::string attributes;
 
-	for (const std::string& rule : mConfig.lfsRuleStrs)
+	for (const std::string& rule : mConfig.lfsWildmatches)
 	{
 		attributes.append(fmt::format("{} filter=lfs diff=lfs merge=lfs -text\n", rule));
 	}
@@ -236,13 +242,25 @@ std::optional<Git::Mapping> Git::MapPath(const long int rev, const std::string_v
 			result.path.erase(0, 1);
 		}
 
-		// Pathspecs will match everything if they're empty, only run it if it's not empty
-		if (mConfig.lfsRuleStrs.size() > 0)
+		for (const std::string& glob : mConfig.lfsWildmatches)
 		{
-			const int res = git_pathspec_matches_path(
-				mConfig.lfsPathspec.get(), GIT_PATHSPEC_DEFAULT, result.path.c_str()
-			);
-			result.lfs = res == 1;
+			const char* subject = result.path.c_str();
+			if (glob.find('/') == std::string::npos)
+			{
+				// Wildmatches that don't contain a path separator (e.g. "foo.psd") get matched
+				// against the pure filename, not the full path.
+				const auto slash = result.path.rfind('/');
+				if (slash != std::string::npos)
+				{
+					subject = result.path.c_str() + slash + 1;
+				}
+			}
+
+			if (wildmatch(glob.c_str(), subject, kWmPathname) == kWmMatch)
+			{
+				result.lfs = true;
+				break;
+			}
 		}
 
 		// fast-import paths can't start with '/' and removing it automatically means
@@ -351,7 +369,8 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 			}
 		}
 
-		if (file.svn->changeType == svn::File::Change::Delete || file.svn->changeType == svn::File::Change::Replace)
+		if (file.svn->changeType == svn::File::Change::Delete ||
+			file.svn->changeType == svn::File::Change::Replace)
 		{
 			mWriter.Delete(file.git.path);
 		}

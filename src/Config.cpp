@@ -3,10 +3,6 @@
 #include <date/tz.h>
 #include <fmt/base.h>
 #include <fmt/format.h>
-#include <git2.h>
-#include <git2/errors.h>
-#include <git2/pathspec.h>
-#include <git2/strarray.h>
 #include <re2/re2.h>
 #include <toml++/toml.h>
 
@@ -107,27 +103,12 @@ std::expected<Config, std::string> Config::Parse(const toml::table& root)
 			const auto expression = rule.value<std::string>();
 			if (!expression)
 			{
-				return std::unexpected("ERROR: LFS must be defined as an array of git pathspecs.");
+				return std::unexpected(
+					"ERROR: LFS must be defined as an array of git wildmatches."
+				);
 			}
 
-			result.lfsRuleStrs.push_back(*expression);
-		}
-
-		std::vector<char*> cPtrs;
-		cPtrs.reserve(result.lfsRuleStrs.size());
-		for (const std::string& rule : result.lfsRuleStrs)
-		{
-			cPtrs.push_back(const_cast<char*>(rule.data()));
-		}
-
-		const git_strarray paths{cPtrs.data(), cPtrs.size()};
-		int err = git_pathspec_new(std::out_ptr(result.lfsPathspec), &paths);
-
-		if (err)
-		{
-			std::string msg =
-				fmt::format("ERROR: Could not compile pathspec: {}", git_error_last()->message);
-			return std::unexpected(msg);
+			result.lfsWildmatches.push_back(*expression);
 		}
 	}
 

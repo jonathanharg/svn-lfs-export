@@ -3,10 +3,9 @@ svn_repository = 'path/to/repository'
 # REQUIRED: File path to where the git repository exists, or should be placed
 git_repository = 'path/to/repository'
 
-# Git pathspec to match LFS file paths IN GIT. In other words, these expressions
+# Git wildmatch to match LFS file paths IN GIT. In other words, these expressions
 # will be matched against the final file paths in the git repository (not the
-# files SVN paths). Note that these pathspecs will be added to the
-# .gitattributes file.
+# files SVN paths). Note that these will be added to the .gitattributes file.
 LFS = [
 	'*.psd',
 	'*.jpg',
