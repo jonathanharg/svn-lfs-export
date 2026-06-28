@@ -351,11 +351,12 @@ std::expected<void, std::string> Git::WriteCommit(const svn::Revision& rev)
 			}
 		}
 
-		if (file.svn->changeType == svn::File::Change::Delete)
+		if (file.svn->changeType == svn::File::Change::Delete || file.svn->changeType == svn::File::Change::Replace)
 		{
 			mWriter.Delete(file.git.path);
 		}
-		else if (!file.svn->isDirectory)
+
+		if (file.svn->changeType != svn::File::Change::Delete && !file.svn->isDirectory)
 		{
 			auto fileContents = file.svn->GetContents();
 			if (!fileContents)
