@@ -19,6 +19,7 @@
 #include <re2/re2.h>
 #include <subprocess.h>
 
+#include <algorithm>
 #include <array>
 #include <csignal>
 #include <cstdlib>
@@ -208,7 +209,9 @@ int main(int argc, char* argv[])
 		}
 		else
 		{
-			Log("ERROR: The git repository has commits but no resume marker. Pass -r <rev>:HEAD to continue manually.");
+			Log(
+				"ERROR: The git repository has commits but no resume marker. Pass -r <rev>:HEAD to continue manually."
+			);
 			return EXIT_FAILURE;
 		}
 		stopRevision = youngestRev;
@@ -236,6 +239,9 @@ int main(int argc, char* argv[])
 		Log("Running from r{} to r{}", startRevision, stopRevision);
 	}
 
+	const long int totalRevisions = stopRevision - startRevision + 1;
+	const long int progressInterval = std::max(1L, totalRevisions / 100);
+
 	bool success = true;
 	for (long int revNum = startRevision; revNum <= stopRevision; revNum++)
 	{
@@ -247,12 +253,6 @@ int main(int argc, char* argv[])
 			break;
 		}
 		auto result = git.WriteCommit(*svnRevision);
-
-		if (revNum % 500 == 0)
-		{
-			float percent = 100.0F * (static_cast<float>(revNum) / static_cast<float>(stopRevision));
-			Log("Converting {}% [{}/{}]", percent, revNum, stopRevision);
-		}
 
 		if (!result.has_value())
 		{
@@ -266,6 +266,13 @@ int main(int argc, char* argv[])
 			success = false;
 			Log("Error git fast-import pipe broke at r{} (process died?)", revNum);
 			break;
+		}
+
+		const long int converted = revNum - startRevision + 1;
+		if (converted % progressInterval == 0 || revNum == stopRevision)
+		{
+			const long int percent = 100 * converted / totalRevisions;
+			Log("Converting {}% [{}/{}]", percent, converted, totalRevisions);
 		}
 	}
 	if (success)
