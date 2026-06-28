@@ -95,7 +95,7 @@ struct File
 	svn_fs_root_t* mRevisionFs = nullptr;
 
 private:
-	File() {}
+	File() = default;
 };
 
 class Repository

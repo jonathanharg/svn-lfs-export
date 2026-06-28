@@ -1,6 +1,7 @@
 #include "Utils.hpp"
 #include "Writer.hpp"
 
+#include <fmt/format.h>
 #include <fmt/ranges.h>
 #include <git2.h>
 
@@ -12,6 +13,7 @@
 #include <fstream>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <unistd.h>
 
 void IFastImport::BeginCommit(BeginCommitArgInfo args)

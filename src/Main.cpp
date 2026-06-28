@@ -47,7 +47,8 @@ struct LibAprInit
 	LibAprInit& operator=(const LibAprInit&) = delete;
 };
 
-std::filesystem::path GetExistingGitStatus(std::filesystem::path path, Git::StartingState* outState)
+std::filesystem::path
+GetExistingGitStatus(const std::filesystem::path& path, Git::StartingState* outState)
 {
 	std::filesystem::path gitRootPath;
 
