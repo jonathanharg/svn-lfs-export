@@ -109,3 +109,43 @@ target_link_libraries(
 		   project_warnings
 )
 target_compile_definitions(svn-lfs-export PUBLIC TOML_ENABLE_FORMATTERS=0 TOML_EXCEPTIONS=0 PROJECT_VERSION="${PROJECT_VERSION}")
+
+# Read-only prepass that suggests [branch_origin] entries. Reuses the converter's config,
+# SVN reading, and path-mapping sources unchanged (re-listed here, not refactored out).
+add_executable(
+	svn-branch-detect
+	src/BranchDetect.cpp
+	src/Config.cpp
+	src/Config.hpp
+	src/Git.cpp
+	src/Git.hpp
+	src/Svn.cpp
+	src/Svn.hpp
+	src/Utils.hpp
+	src/Writer.cpp
+	src/Writer.hpp
+)
+
+target_compile_features(svn-branch-detect PUBLIC cxx_std_23)
+target_include_directories(svn-branch-detect PUBLIC "${PROJECT_SOURCE_DIR}/src" ${CODEGEN_DIR})
+
+target_include_directories(svn-branch-detect SYSTEM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/subprocess.h)
+
+target_link_libraries(
+	svn-branch-detect
+	PUBLIC APR::APR
+		   argparse::argparse
+		   date::date
+		   date::date-tz
+		   fmt::fmt
+		   libgit2
+		   libgit2package
+		   picosha2
+		   re2::re2
+		   Subversion::fs
+		   Subversion::repos
+		   Subversion::subr
+		   tomlplusplus::tomlplusplus
+		   project_warnings
+)
+target_compile_definitions(svn-branch-detect PUBLIC TOML_ENABLE_FORMATTERS=0 TOML_EXCEPTIONS=0 PROJECT_VERSION="${PROJECT_VERSION}")
